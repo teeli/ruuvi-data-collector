@@ -1,5 +1,5 @@
 import { test, describe } from 'vitest'
-import { parseDataFormatE1 } from './parseDataFormatE1'
+import { parseDataFormatE1 } from './parseDataFormatE1.ts'
 
 describe('Ruuvi Data format E1 parser', () => {
   test('should parse valid values', ({ expect }) => {

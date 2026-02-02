@@ -24,6 +24,7 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+    "paths": { "src/*": ["./src/*"], "@scanner/*": ["./src/scanner/*"], "@writers/*": ["./src/writers/*"] }
   }
 }

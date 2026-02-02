@@ -1,6 +1,6 @@
 import { test, describe } from 'vitest'
-import { parseDataFormat6 } from './parseDataFormat6'
-import { DATA_FORMAT_6 } from '../constants'
+import { parseDataFormat6 } from './parseDataFormat6.ts'
+import { DATA_FORMAT_6 } from './constants.ts'
 
 describe('Ruuvi Data format 6 parser', () => {
   test('should parse valid values', ({ expect }) => {

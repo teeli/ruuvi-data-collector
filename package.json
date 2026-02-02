@@ -7,6 +7,7 @@
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
+    "compile": "tsc",
     "start": "bun src/index.ts",
     "watch": "bun --watch src/index.ts",
     "format": "prettier --write .",

@@ -1,10 +1,10 @@
 import noble from '@stoprocent/noble'
 import { type Peripheral } from '@stoprocent/noble'
-import type { ScannerAdapter } from '../types'
+import type { ScannerAdapter } from '@scanner/types'
 
 const RUUVI_COMPANY_CODE = 0x0499
 
-export const BLEAdapter: ScannerAdapter = async (params) => {
+export const ble: ScannerAdapter = async (params) => {
   const init = (peripheral: Peripheral) => {
     const manufacturerData = peripheral.advertisement.manufacturerData
     if (manufacturerData && manufacturerData.readUInt16LE(0) === RUUVI_COMPANY_CODE) {
@@ -17,7 +17,7 @@ export const BLEAdapter: ScannerAdapter = async (params) => {
         id: peripheral.id,
       })
 
-      params.onData({ data: manufacturerData.subarray(2) })
+      params.onData({ data: manufacturerData.slice(2) })
     }
   }
 

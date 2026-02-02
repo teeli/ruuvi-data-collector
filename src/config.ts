@@ -1,5 +1,5 @@
 import type { Config } from './types'
-import { BLEAdapter } from './scanners/ble-scanner/ble-scanner'
-import { consoleWriter } from './writers/console-writer/console-writer'
+import { ble } from '@scanner/adapters/ble'
+import { consoleWriter } from '@writers/console-writer'
 
-export const config: Config = { scannerConfig: { adapter: BLEAdapter }, writerConfig: { adapter: consoleWriter } }
+export const config: Config = { scannerConfig: { adapter: ble }, writerConfig: { adapter: consoleWriter } }

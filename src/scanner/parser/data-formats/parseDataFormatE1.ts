@@ -3,7 +3,8 @@
  *
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-e1
  */
-import type { Parse, RuuviAir } from '../types'
+import type { ParseDataFormat } from '@scanner/parser/data-formats/types'
+import type { RuuviAir } from '@scanner/types'
 
 const TEMPERATURE_INDEX = 1 as const
 const TEMPERATURE_MIN = -32767 as const
@@ -38,8 +39,8 @@ const SEQUENCE_MAX = 16_777_214 as const
 const FLAGS_INDEX = 28 as const
 const MAC_ADDRESS_INDEX = 34 as const
 
-export const parseDataFormatE1: Parse<RuuviAir> = (data) => {
-  const flags = data.readUint8(FLAGS_INDEX)
+export const parseDataFormatE1: ParseDataFormat<RuuviAir> = (data) => {
+  const flags = data.readUInt8(FLAGS_INDEX)
   const calibration = (flags & 0b0000_0001) === 1
   const noxFlag = (flags & 0b1000_0000) >> 7
   const vocFlag = (flags & 0b0100_0000) >> 6

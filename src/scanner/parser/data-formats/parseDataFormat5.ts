@@ -3,7 +3,8 @@
  *
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-6
  */
-import type { Parse, RuuviTag } from '../types'
+import type { ParseDataFormat } from '@scanner/parser/data-formats/types'
+import type { RuuviTag } from '@scanner/types'
 
 const TEMPERATURE_INDEX = 1 as const
 const TEMPERATURE_MIN = -32767 as const
@@ -32,7 +33,7 @@ const SEQUENCE_MIN = 0 as const
 const SEQUENCE_MAX = 65_534 as const
 const MAC_ADDRESS_INDEX = 18 as const
 
-export const parseDataFormat5: Parse<RuuviTag> = (data) => {
+export const parseDataFormat5: ParseDataFormat<RuuviTag> = (data) => {
   const temperatureValue = validateRange(data.readIntBE(TEMPERATURE_INDEX, 2), TEMPERATURE_MIN, TEMPERATURE_MAX)
   const temperature = toPrecision(temperatureValue * 0.005)
   const pressureValue = validateRange(data.readUIntBE(PRESSURE_INDEX, 2), PRESSURE_MIN, PRESSURE_MAX)

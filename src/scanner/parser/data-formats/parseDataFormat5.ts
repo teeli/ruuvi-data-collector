@@ -5,6 +5,7 @@
  */
 import type { ParseDataFormat } from '@scanner/parser/data-formats/types'
 import type { RuuviTag } from '@scanner/types'
+import { formatMacAddress, validateRange } from '@scanner/parser/data-formats/common.ts'
 
 const TEMPERATURE_INDEX = 1 as const
 const TEMPERATURE_MIN = -32767 as const
@@ -33,15 +34,15 @@ const SEQUENCE_MIN = 0 as const
 const SEQUENCE_MAX = 65_534 as const
 const MAC_ADDRESS_INDEX = 18 as const
 
-export const parseDataFormat5: ParseDataFormat<RuuviTag> = (data) => {
+export const parseDataFormat5: ParseDataFormat<RuuviTag> = (data, aliases) => {
   const temperatureValue = validateRange(data.readIntBE(TEMPERATURE_INDEX, 2), TEMPERATURE_MIN, TEMPERATURE_MAX)
-  const temperature = toPrecision(temperatureValue * 0.005)
+  const temperature = temperatureValue * 0.005
   const pressureValue = validateRange(data.readUIntBE(PRESSURE_INDEX, 2), PRESSURE_MIN, PRESSURE_MAX)
   const pressure = pressureValue + 50_000
   const humidityData = data.readUIntBE(HUMIDITY_INDEX, 2)
 
   const humidityValue = validateRange(humidityData, HUMIDITY_MIN, HUMIDITY_MAX)
-  const humidity = toPrecision(humidityValue * 0.0025)
+  const humidity = humidityValue * 0.0025
   const x = data.readIntBE(ACCELERATION_X_INDEX, 2)
   const accelerationXyValue = validateRange(x, ACCELERATION_MIN, ACCELERATION_MAX)
   const y = data.readIntBE(ACCELERATION_Y_INDEX, 2)
@@ -57,25 +58,10 @@ export const parseDataFormat5: ParseDataFormat<RuuviTag> = (data) => {
   const sequence = validateRange(data.readUIntBE(SEQUENCE_INDEX, 2), SEQUENCE_MIN, SEQUENCE_MAX)
   const macData = data.readUIntBE(MAC_ADDRESS_INDEX, 6)
   const maxHex = macData.toString(16)
-  const mac = formatMacAddress(maxHex)
+  const address = formatMacAddress(maxHex)
+  const alias = aliases ? aliases[address] : undefined
 
   const acceleration = { x: accelerationXyValue / 1000, y: accelerationYyValue / 1000, z: accelerationZyValue / 1000 }
 
-  return { temperature, pressure, humidity, acceleration, movement, sequence, txPower, voltage, mac }
+  return { temperature, pressure, humidity, acceleration, movement, sequence, txPower, voltage, address, alias }
 }
-
-/**
- * TODO: Maybe just use Zod?
- */
-const validateRange = (value: number, min: number, max: number): number => (value >= min && value <= max ? value : NaN)
-
-const formatMacAddress = (hexStr: string): string | undefined => {
-  const a = hexStr.toUpperCase().match(/.{2}/g)
-  return a && Array.isArray(a) && a.length === 6 ? a.join(':') : undefined
-}
-
-/**
- * TODO: Do we need this?
- */
-const toPrecision = (value: number, decimals: number = 4): number =>
-  Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals)

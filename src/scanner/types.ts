@@ -1,7 +1,12 @@
 import type { DataFormat } from '@scanner/parser/parser'
+import type { ScannerConfig } from 'src/types.ts'
 
 export type ScannerAdapterDataEvent = { data: Buffer }
-type ScannerAdapterParams = { onData: (event: ScannerAdapterDataEvent) => void }
+export type ScannerAdapterDiscoverEvent = { address: string }
+type ScannerAdapterParams = {
+  onDiscover?: (event: ScannerAdapterDiscoverEvent) => void
+  onData: (event: ScannerAdapterDataEvent) => void
+}
 export type ScannerAdapter = (params: ScannerAdapterParams) => Promise<void>
 
 type ScannerEventMetadata = { dataFormat: DataFormat; timestamp: Date }
@@ -9,10 +14,12 @@ export type ScannerEvent =
   | { metadata: ScannerEventMetadata & { eventType: 'RuuviAir' }; data: RuuviAir }
   | { metadata: ScannerEventMetadata & { eventType: 'RuuviTag' }; data: RuuviTag }
 
-type ScannerParams = { adapter: ScannerAdapter; onEvent: (event: ScannerEvent) => void }
+type ScannerParams = { config: ScannerConfig; onEvent: (event: ScannerEvent) => void }
 export type Scanner = (params: ScannerParams) => void
 
-export type RuuviTag = {
+type RuuviCommon = { sequence: number; address: string; alias: string | undefined }
+
+export type RuuviTag = RuuviCommon & {
   temperature: number
   pressure: number
   humidity: number
@@ -20,11 +27,9 @@ export type RuuviTag = {
   txPower: number
   voltage: number
   movement: number
-  sequence: number
-  mac: string | undefined
 }
 
-export type RuuviAir = {
+export type RuuviAir = RuuviCommon & {
   calibration: boolean
   temperature: number
   pressure: number
@@ -34,8 +39,6 @@ export type RuuviAir = {
   voc: number
   nox: number
   luminosity: number
-  sequence: number
-  mac: string | undefined
 }
 
 export type RuuviMeasurement = RuuviTag | RuuviAir

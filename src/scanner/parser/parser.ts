@@ -12,8 +12,9 @@ import {
 export type DataFormat = (typeof SUPPORTED_DATA_FORMATS)[number]
 
 import type { ScannerAdapterDataEvent, ScannerEvent } from 'src/scanner/types'
+import type { ScannerConfig } from 'src/types.ts'
 
-export const parser = (event: ScannerAdapterDataEvent): ScannerEvent => {
+export const parser = (event: ScannerAdapterDataEvent, config: ScannerConfig): ScannerEvent => {
   const dataFormat = event.data.readUInt8(DATA_FORMAT_INDEX)
 
   if (isValidDataFormat(dataFormat)) {
@@ -21,17 +22,17 @@ export const parser = (event: ScannerAdapterDataEvent): ScannerEvent => {
       case DATA_FORMAT_5:
         return {
           metadata: { eventType: 'RuuviTag', dataFormat: dataFormat, timestamp: new Date() },
-          data: parseDataFormat5(event.data),
+          data: parseDataFormat5(event.data, config.aliases),
         }
       case DATA_FORMAT_6:
         return {
           metadata: { eventType: 'RuuviAir', dataFormat: dataFormat, timestamp: new Date() },
-          data: parseDataFormat6(event.data),
+          data: parseDataFormat6(event.data, config.aliases),
         }
       case DATA_FORMAT_E1:
         return {
           metadata: { eventType: 'RuuviAir', dataFormat: dataFormat, timestamp: new Date() },
-          data: parseDataFormatE1(event.data),
+          data: parseDataFormatE1(event.data, config.aliases),
         }
       default:
         assertUnreachable(dataFormat)

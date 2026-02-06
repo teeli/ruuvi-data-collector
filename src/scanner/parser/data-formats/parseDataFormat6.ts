@@ -5,6 +5,7 @@
  */
 import type { ParseDataFormat } from '@scanner/parser/data-formats/types'
 import type { RuuviAir } from '@scanner/types'
+import { formatMacAddress, validateRange } from '@scanner/parser/data-formats/common.ts'
 
 const TEMPERATURE_INDEX = 1 as const
 const TEMPERATURE_MIN = -32767 as const
@@ -36,45 +37,30 @@ const SEQUENCE_MAX = 255 as const
 const FLAGS_INDEX = 16 as const
 const MAC_ADDRESS_INDEX = 17 as const
 
-export const parseDataFormat6: ParseDataFormat<RuuviAir> = (data) => {
+export const parseDataFormat6: ParseDataFormat<RuuviAir> = (data, aliases) => {
   const flags = data.readUInt8(FLAGS_INDEX)
   const calibration = (flags & 0b0000_0001) === 1
   const noxFlag = (flags & 0b1000_0000) >> 7
   const vocFlag = (flags & 0b0100_0000) >> 6
 
   const temperatureValue = validateRange(data.readIntBE(TEMPERATURE_INDEX, 2), TEMPERATURE_MIN, TEMPERATURE_MAX)
-  const temperature = toPrecision(temperatureValue * 0.005)
+  const temperature = temperatureValue * 0.005
   const pressureValue = validateRange(data.readUIntBE(PRESSURE_INDEX, 2), PRESSURE_MIN, PRESSURE_MAX)
   const pressure = pressureValue + 50_000
   const humidityValue = validateRange(data.readUIntBE(HUMIDITY_INDEX, 2), HUMIDITY_MIN, HUMIDITY_MAX)
-  const humidity = toPrecision(humidityValue * 0.0025)
+  const humidity = humidityValue * 0.0025
   const pm25Value = validateRange(data.readUIntBE(PM_2_5_INDEX, 2), PM_MIN, PM_MAX)
-  const pm = { '2.5': toPrecision(pm25Value * 0.1) }
+  const pm = { '2.5': pm25Value * 0.1 }
   const co2 = validateRange(data.readUIntBE(CO2_INDEX, 2), CO2_MIN, CO2_MAX)
   const voc = validateRange(data.readUIntBE(VOC_INDEX, 1) * 2 + vocFlag, VOC_MIN, VOC_MAX)
   const nox = validateRange(data.readUIntBE(NOX_INDEX, 1) * 2 + noxFlag, NOX_MIN, NOX_MAX)
 
   const LUX_DELTA = Math.log(65536) / 254
   const luminosityValue = validateRange(data.readUInt8(LUMINOSITY_INDEX), LUMINOSITY_MIN, LUMINOSITY_MAX)
-  const luminosity = toPrecision(Math.exp(luminosityValue * LUX_DELTA) - 1, 2)
+  const luminosity = Math.exp(luminosityValue * LUX_DELTA) - 1
   const sequence = validateRange(data.readUIntBE(SEQUENCE_INDEX, 1), SEQUENCE_MIN, SEQUENCE_MAX)
-  const mac = formatMacAddress(data.readUIntBE(MAC_ADDRESS_INDEX, 3).toString(16))
+  const address = formatMacAddress(data.readUIntBE(MAC_ADDRESS_INDEX, 3).toString(16))
+  const alias = aliases ? aliases[address] : undefined
 
-  return { calibration, temperature, pressure, humidity, pm, co2, voc, nox, luminosity, sequence, mac }
+  return { calibration, temperature, pressure, humidity, pm, co2, voc, nox, luminosity, sequence, address, alias }
 }
-
-/**
- * TODO: Maybe just use Zod?
- */
-const validateRange = (value: number, min: number, max: number): number => (value >= min && value <= max ? value : NaN)
-
-const formatMacAddress = (hexStr: string): string | undefined => {
-  const a = hexStr.toUpperCase().match(/.{2}/g)
-  return a && Array.isArray(a) && a.length === 3 ? a.join(':') : undefined
-}
-
-/**
- * TODO: Do we need this?
- */
-const toPrecision = (value: number, decimals: number = 4): number =>
-  Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals)

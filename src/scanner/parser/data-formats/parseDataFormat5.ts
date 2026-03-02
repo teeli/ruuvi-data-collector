@@ -5,7 +5,7 @@
  */
 import type { ParseDataFormat } from '@scanner/parser/data-formats/types'
 import type { RuuviTag } from '@scanner/types'
-import { formatMacAddress, validateRange } from '@scanner/parser/data-formats/common.ts'
+import { formatMacAddress, validateRange } from '@scanner/parser/data-formats/common'
 
 const TEMPERATURE_INDEX = 1 as const
 const TEMPERATURE_MIN = -32767 as const

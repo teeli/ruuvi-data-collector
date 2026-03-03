@@ -18,7 +18,8 @@
     "@stoprocent/noble": "2.3.10",
     "advlib": "1.3.11",
     "advlib-ble-manufacturers": "1.15.1",
-    "webbluetooth": "3.4.0"
+    "webbluetooth": "3.4.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

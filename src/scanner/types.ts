@@ -1,5 +1,5 @@
-import type { DataFormat } from '@scanner/parser/parser'
 import type { ScannerConfig } from 'src/types.ts'
+import type { RuuviData } from '@scanner/schema/ruuvi-data-schema.ts'
 
 export type ScannerAdapterDataEvent = { data: Buffer }
 export type ScannerAdapterDiscoverEvent = { address: string }
@@ -9,10 +9,10 @@ type ScannerAdapterParams = {
 }
 export type ScannerAdapter = (params: ScannerAdapterParams) => Promise<void>
 
-type ScannerEventMetadata = { dataFormat: DataFormat; timestamp: Date }
+type ScannerEventMetadata = { timestamp: Date }
 export type ScannerEvent =
-  | { metadata: ScannerEventMetadata & { eventType: 'RuuviAir' }; data: RuuviAir }
-  | { metadata: ScannerEventMetadata & { eventType: 'RuuviTag' }; data: RuuviTag }
+  | { metadata: ScannerEventMetadata & { eventType: 'RuuviAir' }; data: RuuviData }
+  | { metadata: ScannerEventMetadata & { eventType: 'RuuviTag' }; data: RuuviData }
 
 type ScannerParams = { config: ScannerConfig; onEvent: (event: ScannerEvent) => void }
 export type Scanner = (params: ScannerParams) => void

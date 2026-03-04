@@ -151,7 +151,7 @@ const dataFormatE1Schema = z.object({
   address: z.preprocess(macPreprocess, z.mac()),
 })
 
-const dataFormat5Transform = z
+export const RuuviDataSchema = z
   .instanceof(Buffer)
   .transform((data, ctx) => {
     const dataFormat = data.readUIntBE(0, 1).toString(16).toUpperCase()
@@ -169,26 +169,7 @@ const dataFormat5Transform = z
         sequence: data.readUIntBE(16, 2),
         address: data.readUIntBE(18, 6).toString(16),
       }
-    } else {
-      ctx.issues.push({
-        code: 'custom',
-        message: 'Invalid input data format',
-        input: data,
-        received: dataFormat,
-        expected: DATA_FORMAT_5,
-      })
-    }
-
-    return z.NEVER
-  })
-  .pipe(dataFormat5Schema)
-
-const dataFormat6Transform = z
-  .instanceof(Buffer)
-  .transform((data, ctx) => {
-    const dataFormat = data.readUIntBE(0, 1).toString(16).toUpperCase()
-
-    if (dataFormat === DATA_FORMAT_6) {
+    } else if (dataFormat === DATA_FORMAT_6) {
       const flags = data.readUInt8(16)
       const calibration = (flags & 0b0000_0001) === 1
       const noxFlag = (flags & 0b1000_0000) >> 7
@@ -208,26 +189,7 @@ const dataFormat6Transform = z
         sequence: data.readUIntBE(15, 1),
         address: data.readUIntBE(17, 3).toString(16),
       }
-    } else {
-      ctx.issues.push({
-        code: 'custom',
-        message: 'Invalid input data format',
-        input: data,
-        received: dataFormat,
-        expected: DATA_FORMAT_6,
-      })
-    }
-
-    return z.NEVER
-  })
-  .pipe(dataFormat6Schema)
-
-const dataFormatE1Transform = z
-  .instanceof(Buffer)
-  .transform((data, ctx) => {
-    const dataFormat = data.readUIntBE(0, 1).toString(16).toUpperCase()
-
-    if (dataFormat === DATA_FORMAT_E1) {
+    } else if (dataFormat === DATA_FORMAT_E1) {
       const flags = data.readUInt8(28)
       const calibration = (flags & 0b0000_0001) === 1
       const noxFlag = (flags & 0b1000_0000) >> 7
@@ -262,8 +224,6 @@ const dataFormatE1Transform = z
 
     return z.NEVER
   })
-  .pipe(dataFormatE1Schema)
-
-export const RuuviDataSchema = z.union([dataFormat5Transform, dataFormat6Transform, dataFormatE1Transform])
+  .pipe(z.discriminatedUnion('dataFormat', [dataFormat5Schema, dataFormat6Schema, dataFormatE1Schema]))
 
 export type RuuviData = z.output<typeof RuuviDataSchema>

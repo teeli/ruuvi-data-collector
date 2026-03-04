@@ -1,4 +1,5 @@
-import { type RuuviData, RuuviDataSchema } from '@scanner/ruuvi-data-schema.ts'
+import { RuuviDataSchema } from '@scanner/ruuvi-data-schema.ts';
+import type { RuuviData } from '@scanner/ruuvi-data-schema.ts';
 import type { Peripheral } from '@stoprocent/noble'
 import noble from '@stoprocent/noble'
 

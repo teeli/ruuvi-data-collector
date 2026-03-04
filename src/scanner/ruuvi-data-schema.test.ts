@@ -1,4 +1,4 @@
-import { test, describe } from 'vitest'
+import { describe, test } from 'vitest'
 import { RuuviDataSchema } from './ruuvi-data-schema.ts'
 
 describe('Ruuvi data schema', () => {

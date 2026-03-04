@@ -1,4 +1,5 @@
-import { config, type WriterAdapter } from '../config'
+import { config } from '../config'
+import type { WriterAdapter } from '../config'
 
 const fixedLength = (str: string, len: number = 15, alignRight: boolean = false) => {
   const s = str.substring(0, len)

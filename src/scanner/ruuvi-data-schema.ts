@@ -1,8 +1,8 @@
 import * as z from 'zod'
 
-export const DATA_FORMAT_5 = 5 as const
-export const DATA_FORMAT_6 = 6 as const
-export const DATA_FORMAT_E1 = 0xe1 as const
+export const DATA_FORMAT_5 = '5' as const
+export const DATA_FORMAT_6 = '6' as const
+export const DATA_FORMAT_E1 = 'E1' as const
 
 const macPreprocess = (val: string): string => val.toUpperCase().match(/.{2}/g)?.join(':') ?? ''
 
@@ -154,7 +154,7 @@ const dataFormatE1Schema = z.object({
 const dataFormat5Transform = z
   .instanceof(Buffer)
   .transform((data, ctx) => {
-    const dataFormat = data.readUIntBE(0, 1)
+    const dataFormat = data.readUIntBE(0, 1).toString(16).toUpperCase()
 
     if (dataFormat === DATA_FORMAT_5) {
       return {
@@ -186,7 +186,7 @@ const dataFormat5Transform = z
 const dataFormat6Transform = z
   .instanceof(Buffer)
   .transform((data, ctx) => {
-    const dataFormat = data.readUIntBE(0, 1)
+    const dataFormat = data.readUIntBE(0, 1).toString(16).toUpperCase()
 
     if (dataFormat === DATA_FORMAT_6) {
       const flags = data.readUInt8(16)
@@ -225,7 +225,7 @@ const dataFormat6Transform = z
 const dataFormatE1Transform = z
   .instanceof(Buffer)
   .transform((data, ctx) => {
-    const dataFormat = data.readUIntBE(0, 1)
+    const dataFormat = data.readUIntBE(0, 1).toString(16).toUpperCase()
 
     if (dataFormat === DATA_FORMAT_E1) {
       const flags = data.readUInt8(28)

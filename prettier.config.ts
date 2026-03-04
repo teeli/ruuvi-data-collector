@@ -1,12 +1,13 @@
-import { type Config } from 'prettier'
+import type { Config } from 'prettier'
 
 const config: Config = {
-  trailingComma: 'es5',
-  tabWidth: 2,
+  objectWrap: 'collapse',
+  printWidth: 120,
   semi: false,
   singleQuote: true,
-  printWidth: 120,
-  objectWrap: 'collapse',
+  tabWidth: 2,
+  trailingComma: 'es5',
 }
 
+/* oxlint-disable no-default-export */
 export default config

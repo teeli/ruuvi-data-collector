@@ -1,18 +1,4 @@
-import { consoleWriter } from '@writers/console-writer'
-import type { ScannerEvent } from '@scanner/scanner'
-
-export type WriterAdapter = (event: ScannerEvent) => void
-
-export type WriterConfig = {
-  /**
-   * Writer adapter to use (e.g. ConsoleWriter)
-   */
-  adapter: WriterAdapter
-}
-
 export type Config = {
-  writerConfig: WriterConfig
-
   /**
    * Device aliases as key value pairs
    * key: address
@@ -24,7 +10,6 @@ export type Config = {
 }
 
 export const config: Config = {
-  writerConfig: { adapter: consoleWriter },
   aliases: {
     'FE:9B:DD:55:B5:E9': 'Living Room',
     'C0:C4:FC:C7:A0:47': 'Sauna',

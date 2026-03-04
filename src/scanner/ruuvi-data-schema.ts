@@ -57,9 +57,6 @@ const dataFormat5Schema = z.object({
   address: z.preprocess(macPreprocess, z.mac()),
 })
 
-const LUX_DELTA = Math.log(65536) / 254
-
-const transformLuminosity6 = (val) => Math.exp(val * LUX_DELTA) - 1
 /**
  * Ruuvi data format 6 schema
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-6
@@ -90,7 +87,16 @@ const dataFormat6Schema = z.object({
   co2: z.number().min(0).max(40_000),
   voc: z.number().min(0).max(500),
   nox: z.number().min(0).max(500),
-  luminosity: z.number().min(0).max(254).pipe(z.transform(transformLuminosity6)),
+  luminosity: z
+    .number()
+    .min(0)
+    .max(254)
+    .pipe(
+      z.transform((val) => {
+        const delta = Math.log(65536) / 254
+        return Math.exp(val * delta) - 1
+      })
+    ),
   sequence: z.number().min(0).max(65_534),
   address: z.preprocess(macPreprocess, z.string()),
 })

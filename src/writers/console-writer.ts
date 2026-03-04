@@ -1,5 +1,4 @@
-import type { WriterAdapter } from '@writers/types'
-import { config } from '../config'
+import { config, type WriterAdapter } from '../config'
 
 const fixedLength = (str: string, len: number = 15, alignRight: boolean = false) => {
   const s = str.substring(0, len)
@@ -16,7 +15,7 @@ export const consoleWriter: WriterAdapter = (event) => {
     fixedLength(`${event.data.temperature.toFixed(2)}°C`, 10, true),
     fixedLength(`${event.data.humidity.toFixed(2)}%`, 10, true),
     fixedLength(`${event.data.pressure} Pa`, 10, true),
-    fixedLength(`${event.data?.luminosity ?? 'n/a'} lux`, 13, true),
+    fixedLength(`${'luminosity' in event.data ? event.data.luminosity : 'n/a'} lux`, 13, true),
   ] as const
   console.log('|', columns.join(' | '), '|')
 }

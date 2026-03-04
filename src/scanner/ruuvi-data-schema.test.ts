@@ -227,4 +227,24 @@ describe('Ruuvi data schema', () => {
       expect(result.success).toEqual(false)
     })
   })
+
+  describe('with invalid data', () => {
+    test('should fail validation with invalid data', ({ expect }) => {
+      const data = 'E1170C5668C79E0065007004BD11CA00C90A0213E0AC000000DECDEE010000000000CBB8334C884F'
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.error).toBeDefined()
+      expect(result.data).not.toBeDefined()
+      expect(result.success).toEqual(false)
+    })
+    test('should fail validation with invalid data format', ({ expect }) => {
+      const data = Buffer.from(
+        'EE8000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FFFFFFFE0000000000FFFFFFFFFFFF',
+        'hex'
+      )
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.error).toBeDefined()
+      expect(result.data).not.toBeDefined()
+      expect(result.success).toEqual(false)
+    })
+  })
 })

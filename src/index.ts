@@ -1,14 +1,12 @@
 import { scanner } from '@scanner/scanner'
-import type { Config } from './types'
-import { config } from './config'
+import { config, type Config } from './config'
 
-const main = (config: Config): void => {
-  scanner({
-    config: config.scannerConfig,
+const main = async (config: Config): Promise<void> => {
+  await scanner({
     onEvent: (event) => {
       config.writerConfig.adapter(event)
     },
   })
 }
 
-main(config)
+void main(config)

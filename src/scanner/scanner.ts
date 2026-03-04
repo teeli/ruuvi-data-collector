@@ -1,15 +1,48 @@
-import type { Scanner } from '@scanner/types'
+import { type RuuviData, RuuviDataSchema } from '@scanner/ruuvi-data-schema.ts'
+import type { Peripheral } from '@stoprocent/noble'
+import noble from '@stoprocent/noble'
 
-import { RuuviDataSchema } from '@scanner/schema/ruuvi-data-schema.ts'
+const RUUVI_COMPANY_CODE = 0x0499
 
-export const scanner: Scanner = (params) => {
-  params.config.adapter({
-    onData: (event) => {
-      const result = RuuviDataSchema.safeParse(event.data)
+const ruuviDevices = new Map<string, Peripheral>()
 
-      if (result.success) {
-        return params.onEvent({ data: result.data, metadata: { timestamp: new Date(), eventType: 'RuuviTag' } })
+type ScannerEventMetadata = { timestamp: Date }
+export type ScannerEvent = { metadata: ScannerEventMetadata; data: RuuviData }
+type ScannerParams = { onEvent: (event: ScannerEvent) => void }
+type Scanner = (params: ScannerParams) => Promise<void>
+
+export const scanner: Scanner = async (params) => {
+  const handleDiscover = (peripheral: Peripheral): void => {
+    if (isRuuviDevice(peripheral)) {
+      if (!ruuviDevices.has(peripheral.id)) {
+        ruuviDevices.set(peripheral.id, peripheral)
+        void peripheral.connectAsync()
       }
-    },
-  })
+
+      const { data, success } = RuuviDataSchema.safeParse(readManufacturerData(peripheral))
+      if (success) {
+        const metadata = { timestamp: new Date(), eventType: 'RuuviTag' }
+        params.onEvent({ data, metadata })
+      }
+    }
+  }
+
+  try {
+    await noble.waitForPoweredOnAsync()
+    await noble.startScanningAsync()
+    noble.on('discover', handleDiscover)
+  } catch (e) {
+    console.error('Bluetooth LE discovery failed', e)
+    await noble.stopScanningAsync()
+  }
+}
+
+const readManufacturerData = (peripheral: Peripheral) => {
+  const manufacturerData = peripheral.advertisement.manufacturerData
+  return manufacturerData.slice(2)
+}
+
+const isRuuviDevice = (peripheral: Peripheral) => {
+  const manufacturerData = peripheral.advertisement.manufacturerData
+  return manufacturerData && manufacturerData.readUInt16LE(0) === RUUVI_COMPANY_CODE
 }

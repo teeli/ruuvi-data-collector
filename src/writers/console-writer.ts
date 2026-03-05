@@ -1,4 +1,4 @@
-import { config } from '../config'
+import config from 'config'
 import type { ScannerEvent } from '@scanner/scanner.ts'
 
 const fixedLength = (str: string, len: number = 15, alignRight: boolean = false) => {

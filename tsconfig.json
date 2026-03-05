@@ -25,6 +25,12 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
-    "paths": { "src/*": ["./src/*"], "@scanner/*": ["./src/scanner/*"], "@writers/*": ["./src/writers/*"] }
+    "paths": {
+      "src/*": ["./src/*"],
+      "@scanner/*": ["./src/scanner/*"],
+      "@writers/*": ["./src/writers/*"],
+      "@config/*": ["./src/config/*"],
+      "config*": ["./config.ts"]
+    }
   }
 }

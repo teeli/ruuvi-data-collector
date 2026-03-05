@@ -1,4 +1,3 @@
-import 'dotenv'
 import { scanner } from '@scanner/scanner'
 import { handleEvent } from '@writers/influxdb-writer'
 

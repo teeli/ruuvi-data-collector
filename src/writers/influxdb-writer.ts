@@ -1,20 +1,8 @@
 import { InfluxDB, Point } from '@influxdata/influxdb-client'
 import type { ScannerEvent } from '@scanner/scanner.ts'
-import { config } from 'src/config.ts'
-import { z } from 'zod'
+import config from 'config'
 
-const Env = z.object({
-  INFLUXDB_HOST: z.url(),
-  INFLUXDB_ORG: z.string(),
-  INFLUXDB_BUCKET: z.string(),
-  INFLUXDB_TOKEN: z.string(),
-})
-const env = Env.parse(process.env)
-const influxdb = new InfluxDB({ url: env.INFLUXDB_HOST, token: env.INFLUXDB_TOKEN }).getWriteApi(
-  env.INFLUXDB_ORG,
-  env.INFLUXDB_BUCKET,
-  'ns'
-)
+const influxdb = new InfluxDB(config.influxdb.connection).getWriteApi(config.influxdb.org, config.influxdb.bucket, 'ns')
 
 const ignoreFields = ['dataFormat', 'address', 'sequence', 'calibration']
 

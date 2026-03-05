@@ -27,23 +27,21 @@ const dataFormat5Schema = z.object({
     .min(0)
     .max(65_534)
     .pipe(z.transform((val) => val + 50_000)),
-  acceleration: z.object({
-    x: z
-      .number()
-      .min(-32_767)
-      .max(32_767)
-      .pipe(z.transform((val) => val / 1000)),
-    y: z
-      .number()
-      .min(-32_767)
-      .max(32_767)
-      .pipe(z.transform((val) => val / 1000)),
-    z: z
-      .number()
-      .min(-32_767)
-      .max(32_767)
-      .pipe(z.transform((val) => val / 1000)),
-  }),
+  accelerationX: z
+    .number()
+    .min(-32_767)
+    .max(32_767)
+    .pipe(z.transform((val) => val / 1000)),
+  accelerationY: z
+    .number()
+    .min(-32_767)
+    .max(32_767)
+    .pipe(z.transform((val) => val / 1000)),
+  accelerationZ: z
+    .number()
+    .min(-32_767)
+    .max(32_767)
+    .pipe(z.transform((val) => val / 1000)),
   txPower: z
     .number()
     .pipe(z.number().min(0).max(30))
@@ -151,6 +149,8 @@ const dataFormatE1Schema = z.object({
   address: z.preprocess(macPreprocess, z.mac()),
 })
 
+const DataFormatUnion = z.discriminatedUnion('dataFormat', [dataFormat5Schema, dataFormat6Schema, dataFormatE1Schema])
+
 export const RuuviDataSchema = z
   .instanceof(Buffer)
   .transform((data, ctx) => {
@@ -162,13 +162,15 @@ export const RuuviDataSchema = z
         temperature: data.readIntBE(1, 2),
         humidity: data.readUIntBE(3, 2),
         pressure: data.readUIntBE(5, 2),
-        acceleration: { x: data.readIntBE(7, 2), y: data.readIntBE(9, 2), z: data.readIntBE(11, 2) },
+        accelerationX: data.readIntBE(7, 2),
+        accelerationY: data.readIntBE(9, 2),
+        accelerationZ: data.readIntBE(11, 2),
         txPower: data.readUIntBE(13, 2) & 0x1f,
         voltage: data.readUIntBE(13, 2) >> 5,
         movement: data.readUIntBE(15, 1),
         sequence: data.readUIntBE(16, 2),
         address: data.readUIntBE(18, 6).toString(16),
-      }
+      } satisfies z.input<typeof dataFormat5Schema>
     } else if (dataFormat === DATA_FORMAT_6) {
       const flags = data.readUInt8(16)
       const calibration = (flags & 0b0000_0001) === 1
@@ -188,7 +190,7 @@ export const RuuviDataSchema = z
         luminosity: data.readUInt8(13),
         sequence: data.readUIntBE(15, 1),
         address: data.readUIntBE(17, 3).toString(16),
-      }
+      } satisfies z.input<typeof dataFormat6Schema>
     } else if (dataFormat === DATA_FORMAT_E1) {
       const flags = data.readUInt8(28)
       const calibration = (flags & 0b0000_0001) === 1
@@ -211,7 +213,7 @@ export const RuuviDataSchema = z
         luminosity: data.readUIntBE(19, 3) * 0.01,
         sequence: data.readUIntBE(25, 3),
         address: data.readUIntBE(34, 6).toString(16),
-      }
+      } satisfies z.input<typeof dataFormatE1Schema>
     } else {
       ctx.issues.push({
         code: 'custom',
@@ -224,6 +226,6 @@ export const RuuviDataSchema = z
 
     return z.NEVER
   })
-  .pipe(z.discriminatedUnion('dataFormat', [dataFormat5Schema, dataFormat6Schema, dataFormatE1Schema]))
+  .pipe(DataFormatUnion)
 
 export type RuuviData = z.output<typeof RuuviDataSchema>

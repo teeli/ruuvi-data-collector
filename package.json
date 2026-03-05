@@ -17,7 +17,9 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@influxdata/influxdb-client": "1.35.0",
     "@stoprocent/noble": "2.3.10",
+    "dotenv": "17.3.1",
     "zod": "4.3.6"
   },
   "devDependencies": {

@@ -1,10 +1,11 @@
+import 'dotenv'
 import { scanner } from '@scanner/scanner'
-import { consoleWriter } from '@writers/console-writer'
+import { handleEvent } from '@writers/influxdb-writer'
 
 const main = async (): Promise<void> => {
   await scanner({
     onEvent: (event) => {
-      consoleWriter(event)
+      handleEvent(event)
     },
   })
 }

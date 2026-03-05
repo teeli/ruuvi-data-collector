@@ -9,7 +9,7 @@ const fixedLength = (str: string, len: number = 15, alignRight: boolean = false)
   return s.padEnd(len, ' ')
 }
 
-export const consoleWriter = (event: ScannerEvent) => {
+export const handleEvent = (event: ScannerEvent) => {
   const columns = [
     fixedLength(config?.aliases?.[event.data.address] ?? event.data.address, 20),
     fixedLength(event.data.dataFormat, 3),

@@ -15,7 +15,7 @@ type Scanner = (params: ScannerParams) => Promise<void>
 export const scanner: Scanner = async (params) => {
   const handleDiscover = (peripheral: Peripheral): void => {
     if (isRuuviDevice(peripheral)) {
-      if (!ruuviDevices.has(peripheral.id)) {
+      if (!ruuviDevices.has(peripheral.id) && peripheral.connectable) {
         ruuviDevices.set(peripheral.id, peripheral)
         void peripheral.connectAsync()
       }

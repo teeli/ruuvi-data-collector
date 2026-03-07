@@ -6,6 +6,25 @@ export const DATA_FORMAT_E1 = 'E1' as const
 
 const macPreprocess = (val: number): string => val.toString(16).toUpperCase().match(/.{2}/g)?.join(':') ?? ''
 
+// codec for parsing luminosity values for data format 6
+const LUX_MAX_VALUE = 65535
+const LUX_MAX_CODE = 254
+const LUX_DELTA = Math.log(LUX_MAX_VALUE + 1) / LUX_MAX_CODE
+
+const luminosityCodec = z.codec(z.number(), z.number(), {
+  decode: (code) => Math.exp(code * LUX_DELTA) - 1,
+  encode: (value) => {
+    value = Math.max(0, Math.min(value, LUX_MAX_VALUE))
+    return Math.round(Math.log(value + 1) / LUX_DELTA)
+  },
+})
+
+const toPrecision = (precision: number) =>
+  z.number().transform((v) => {
+    const factor = 10 ** precision
+    return Math.round(v * factor) / factor
+  })
+
 /**
  * Ruuvi data format 5 schema
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2
@@ -16,12 +35,14 @@ const dataFormat5Schema = z.object({
     .int()
     .min(-32_767)
     .max(32_767)
-    .pipe(z.transform((val) => val * 0.005)),
+    .pipe(z.transform((val) => val * 0.005))
+    .pipe(toPrecision(3)),
   humidity: z
     .int()
     .min(0)
     .max(65_534)
-    .pipe(z.transform((val) => val * 0.0025)),
+    .pipe(z.transform((val) => val * 0.0025))
+    .pipe(toPrecision(4)),
   pressure: z
     .int()
     .min(0)
@@ -31,17 +52,20 @@ const dataFormat5Schema = z.object({
     .int()
     .min(-32_767)
     .max(32_767)
-    .pipe(z.transform((val) => val / 1000)),
+    .pipe(z.transform((val) => val / 1000))
+    .pipe(toPrecision(4)),
   accelerationY: z
     .int()
     .min(-32_767)
     .max(32_767)
-    .pipe(z.transform((val) => val / 1000)),
+    .pipe(z.transform((val) => val / 1000))
+    .pipe(toPrecision(4)),
   accelerationZ: z
     .int()
     .min(-32_767)
     .max(32_767)
-    .pipe(z.transform((val) => val / 1000)),
+    .pipe(z.transform((val) => val / 1000))
+    .pipe(toPrecision(4)),
   txPower: z.preprocess(
     (val: number) => val & 0x1f,
     z
@@ -49,6 +73,7 @@ const dataFormat5Schema = z.object({
       .min(0)
       .max(30)
       .pipe(z.transform((val) => val * 2 - 40))
+      .pipe(toPrecision(0))
   ),
   voltage: z.preprocess(
     (val: number) => val >> 5,
@@ -57,6 +82,7 @@ const dataFormat5Schema = z.object({
       .min(0)
       .max(2_046)
       .pipe(z.transform((val) => (1600 + val) / 1000))
+      .pipe(toPrecision(4))
   ),
   movement: z.int().min(0).max(254),
   sequence: z.int().min(0).max(65_534),
@@ -74,12 +100,14 @@ const dataFormat6Schema = z.object({
     .int()
     .min(-32_767)
     .max(32_767)
-    .pipe(z.transform((val) => val * 0.005)),
+    .pipe(z.transform((val) => val * 0.005))
+    .pipe(toPrecision(3)),
   humidity: z
     .int()
     .min(0)
     .max(40_000)
-    .pipe(z.transform((val) => val * 0.0025)),
+    .pipe(z.transform((val) => val * 0.0025))
+    .pipe(toPrecision(4)),
   pressure: z
     .int()
     .min(0)
@@ -89,20 +117,12 @@ const dataFormat6Schema = z.object({
     .int()
     .min(0)
     .max(10_000)
-    .pipe(z.transform((val) => val * 0.1)),
+    .pipe(z.transform((val) => val * 0.1))
+    .pipe(toPrecision(1)),
   co2: z.int().min(0).max(40_000),
   voc: z.number().min(0).max(500),
   nox: z.number().min(0).max(500),
-  luminosity: z
-    .int()
-    .min(0)
-    .max(254)
-    .pipe(
-      z.transform((val) => {
-        const delta = Math.log(65536) / 254
-        return Math.exp(val * delta) - 1
-      })
-    ),
+  luminosity: z.int().min(0).max(254).pipe(luminosityCodec).pipe(toPrecision(2)),
   sequence: z.int().min(0).max(65_534),
   address: z.preprocess(macPreprocess, z.string()),
 })
@@ -118,12 +138,14 @@ const dataFormatE1Schema = z.object({
     .int()
     .min(-32_767)
     .max(32_767)
-    .pipe(z.transform((val) => val * 0.005)),
+    .pipe(z.transform((val) => val * 0.005))
+    .pipe(toPrecision(3)),
   humidity: z
     .int()
     .min(0)
     .max(40_000)
-    .pipe(z.transform((val) => val * 0.0025)),
+    .pipe(z.transform((val) => val * 0.0025))
+    .pipe(toPrecision(4)),
   pressure: z
     .int()
     .min(0)
@@ -133,26 +155,30 @@ const dataFormatE1Schema = z.object({
     .int()
     .min(0)
     .max(10_000)
-    .pipe(z.transform((val) => val * 0.1)),
+    .pipe(z.transform((val) => val * 0.1))
+    .pipe(toPrecision(1)),
   'pm2.5': z
     .int()
     .min(0)
     .max(10_000)
-    .pipe(z.transform((val) => val * 0.1)),
+    .pipe(z.transform((val) => val * 0.1))
+    .pipe(toPrecision(1)),
   'pm4.0': z
     .int()
     .min(0)
     .max(10_000)
-    .pipe(z.transform((val) => val * 0.1)),
+    .pipe(z.transform((val) => val * 0.1))
+    .pipe(toPrecision(1)),
   'pm10.0': z
     .int()
     .min(0)
     .max(10_000)
-    .pipe(z.transform((val) => val * 0.1)),
+    .pipe(z.transform((val) => val * 0.1))
+    .pipe(toPrecision(1)),
   co2: z.int().min(0).max(40_000),
   voc: z.number().min(0).max(500),
   nox: z.number().min(0).max(500),
-  luminosity: z.preprocess((val: number) => val * 0.01, z.number().min(0).max(14_428_400)),
+  luminosity: z.preprocess((val: number) => val * 0.01, z.number().min(0).max(14_428_400)).pipe(toPrecision(2)),
   sequence: z.int().min(0).max(16_777_214),
   address: z.preprocess(macPreprocess, z.mac()),
 })

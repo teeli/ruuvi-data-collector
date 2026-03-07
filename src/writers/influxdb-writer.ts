@@ -1,37 +1,37 @@
 import { InfluxDB, Point } from '@influxdata/influxdb-client'
-import type { ScannerEvent } from '@scanner/scanner.ts'
+import type { ScannerEvent } from '@scanner/scanner'
 import config from 'config'
 
 const influxdb = new InfluxDB(config.influxdb.connection).getWriteApi(config.influxdb.org, config.influxdb.bucket, 'ns')
 
-const ignoreFields = ['dataFormat', 'address', 'sequence', 'calibration']
+const tagFields = ['dataFormat', 'address']
+const ignoreFields = ['calibration']
 
 const lastSequence: Record<string, number> = {}
 
 export const handleEvent = async (event: ScannerEvent) => {
   const { address, sequence } = event.data
-  const alias = config?.aliases?.[address]
 
   if (lastSequence[address] && lastSequence[address] === sequence) {
-    // sample has already been received
+    // data has already been received, don't write it again
     return
   }
 
-  const points = Object.entries(event.data)
+  const point = Object.entries(event.data)
     .filter(([key]) => !ignoreFields.includes(key))
-    .map(([key, value]) => {
-      const point = new Point(key).tag('address', address)
-
-      if (alias) {
-        point.tag('alias', alias)
+    .reduce((point, [key, value]) => {
+      if (tagFields.includes(key)) {
+        return point.tag(key, value.toString())
       }
 
-      point.floatField('value', value)
+      return point.floatField(key, value)
+    }, new Point('ruuvi_measurement'))
 
-      console.log(` ${point.toLineProtocol(influxdb)}`)
-      return point
-    })
+  if (config?.aliases?.[address]) {
+    point.tag('alias', config?.aliases?.[address])
+  }
 
-  influxdb.writePoints(points)
+  influxdb.writePoint(point)
+  console.log(` ${point.toLineProtocol(influxdb)}`)
   await influxdb.flush()
 }

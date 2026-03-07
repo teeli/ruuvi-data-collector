@@ -1,5 +1,5 @@
-import { RuuviDataSchema } from '@scanner/ruuvi-data-schema.ts';
-import type { RuuviData } from '@scanner/ruuvi-data-schema.ts';
+import { RuuviDataSchema } from '@scanner/ruuvi-data-schema'
+import type { RuuviData } from '@scanner/ruuvi-data-schema'
 import type { Peripheral } from '@stoprocent/noble'
 import noble from '@stoprocent/noble'
 
@@ -20,7 +20,10 @@ export const scanner: Scanner = async (params) => {
         void peripheral.connectAsync()
       }
 
-      const { data, success } = RuuviDataSchema.safeParse(readManufacturerData(peripheral))
+      const { data, success, error } = RuuviDataSchema.safeParse(readManufacturerData(peripheral))
+      if (error) {
+        console.warn('Parse error', error)
+      }
       if (success) {
         const metadata = { timestamp: new Date(), eventType: 'RuuviTag' }
         params.onEvent({ data, metadata })

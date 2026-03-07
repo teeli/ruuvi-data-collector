@@ -1,5 +1,5 @@
 import { describe, test } from 'vitest'
-import { RuuviDataSchema } from './ruuvi-data-schema.ts'
+import { RuuviDataSchema } from './ruuvi-data-schema'
 
 describe('Ruuvi data schema', () => {
   describe('with data format 5', () => {

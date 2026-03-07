@@ -1,5 +1,5 @@
 import config from 'config'
-import type { ScannerEvent } from '@scanner/scanner.ts'
+import type { ScannerEvent } from '@scanner/scanner'
 
 const fixedLength = (str: string, len: number = 15, alignRight: boolean = false) => {
   const s = str.substring(0, len)

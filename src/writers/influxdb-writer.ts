@@ -18,7 +18,7 @@ export const handleEvent = async (event: ScannerEvent) => {
   }
 
   const point = Object.entries(event.data)
-    .filter(([key]) => !ignoreFields.includes(key))
+    .filter(([key, value]) => !ignoreFields.includes(key) && value !== undefined)
     .reduce((point, [key, value]) => {
       if (tagFields.includes(key)) {
         return point.tag(key, value.toString())

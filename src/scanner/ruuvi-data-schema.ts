@@ -13,10 +13,7 @@ const LUX_DELTA = Math.log(LUX_MAX_VALUE + 1) / LUX_MAX_CODE
 
 const luminosityCodec = z.codec(z.number(), z.number(), {
   decode: (code) => Math.exp(code * LUX_DELTA) - 1,
-  encode: (value) => {
-    value = Math.max(0, Math.min(value, LUX_MAX_VALUE))
-    return Math.round(Math.log(value + 1) / LUX_DELTA)
-  },
+  encode: (value) => Math.round(Math.log(Math.max(0, Math.min(value, LUX_MAX_VALUE)) + 1) / LUX_DELTA),
 })
 
 const toPrecision = (precision: number) =>
@@ -122,7 +119,14 @@ const dataFormat6Schema = z.object({
   co2: z.int().min(0).max(40_000),
   voc: z.number().min(0).max(500),
   nox: z.number().min(0).max(500),
-  luminosity: z.int().min(0).max(254).pipe(luminosityCodec).pipe(toPrecision(2)),
+  luminosity: z
+    .int()
+    .min(0)
+    .max(254)
+    // RuuviAir often seems to report values over the maximum, so this prevents validation errors
+    .catch((ctx) => (ctx.issues.some((issue) => issue.code === 'too_big') ? 254 : 0))
+    .pipe(luminosityCodec)
+    .pipe(toPrecision(2)),
   sequence: z.int().min(0).max(65_534),
   address: z.preprocess(macPreprocess, z.string()),
 })
@@ -178,7 +182,14 @@ const dataFormatE1Schema = z.object({
   co2: z.int().min(0).max(40_000),
   voc: z.number().min(0).max(500),
   nox: z.number().min(0).max(500),
-  luminosity: z.preprocess((val: number) => val * 0.01, z.number().min(0).max(14_428_400)).pipe(toPrecision(2)),
+  luminosity: z
+    .number()
+    .min(0)
+    .max(14_428_400)
+    // RuuviAir often seems to report values over the maximum, so this prevents validation errors
+    .catch((ctx) => (ctx.issues.some((issue) => issue.code === 'too_big') ? 14_428_400 : 0))
+    .pipe(z.transform((val) => val * 0.01))
+    .pipe(toPrecision(2)),
   sequence: z.int().min(0).max(16_777_214),
   address: z.preprocess(macPreprocess, z.mac()),
 })

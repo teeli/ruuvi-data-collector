@@ -4,7 +4,7 @@ export const DATA_FORMAT_5 = '5' as const
 export const DATA_FORMAT_6 = '6' as const
 export const DATA_FORMAT_E1 = 'E1' as const
 
-const macPreprocess = (val: string): string => val.toUpperCase().match(/.{2}/g)?.join(':') ?? ''
+const macPreprocess = (val: number): string => val.toString(16).toUpperCase().match(/.{2}/g)?.join(':') ?? ''
 
 /**
  * Ruuvi data format 5 schema
@@ -13,45 +13,53 @@ const macPreprocess = (val: string): string => val.toUpperCase().match(/.{2}/g)?
 const dataFormat5Schema = z.object({
   dataFormat: z.literal(DATA_FORMAT_5),
   temperature: z
-    .number()
+    .int()
     .min(-32_767)
     .max(32_767)
     .pipe(z.transform((val) => val * 0.005)),
   humidity: z
-    .number()
+    .int()
     .min(0)
     .max(65_534)
     .pipe(z.transform((val) => val * 0.0025)),
   pressure: z
-    .number()
+    .int()
     .min(0)
     .max(65_534)
     .pipe(z.transform((val) => val + 50_000)),
   accelerationX: z
-    .number()
+    .int()
     .min(-32_767)
     .max(32_767)
     .pipe(z.transform((val) => val / 1000)),
   accelerationY: z
-    .number()
+    .int()
     .min(-32_767)
     .max(32_767)
     .pipe(z.transform((val) => val / 1000)),
   accelerationZ: z
-    .number()
+    .int()
     .min(-32_767)
     .max(32_767)
     .pipe(z.transform((val) => val / 1000)),
-  txPower: z
-    .number()
-    .pipe(z.number().min(0).max(30))
-    .pipe(z.transform((val) => val * 2 - 40)),
-  voltage: z
-    .number()
-    .pipe(z.number().min(0).max(2_046))
-    .pipe(z.transform((val) => (1600 + val) / 1000)),
-  movement: z.number().min(0).max(254),
-  sequence: z.number().min(0).max(65_534),
+  txPower: z.preprocess(
+    (val: number) => val & 0x1f,
+    z
+      .number()
+      .min(0)
+      .max(30)
+      .pipe(z.transform((val) => val * 2 - 40))
+  ),
+  voltage: z.preprocess(
+    (val: number) => val >> 5,
+    z
+      .number()
+      .min(0)
+      .max(2_046)
+      .pipe(z.transform((val) => (1600 + val) / 1000))
+  ),
+  movement: z.int().min(0).max(254),
+  sequence: z.int().min(0).max(65_534),
   address: z.preprocess(macPreprocess, z.mac()),
 })
 
@@ -63,30 +71,30 @@ const dataFormat6Schema = z.object({
   dataFormat: z.literal(DATA_FORMAT_6),
   calibration: z.boolean(),
   temperature: z
-    .number()
+    .int()
     .min(-32_767)
     .max(32_767)
     .pipe(z.transform((val) => val * 0.005)),
   humidity: z
-    .number()
+    .int()
     .min(0)
     .max(40_000)
     .pipe(z.transform((val) => val * 0.0025)),
   pressure: z
-    .number()
+    .int()
     .min(0)
     .max(65_534)
     .pipe(z.transform((val) => val + 50_000)),
   'pm2.5': z
-    .number()
+    .int()
     .min(0)
     .max(10_000)
     .pipe(z.transform((val) => val * 0.1)),
-  co2: z.number().min(0).max(40_000),
+  co2: z.int().min(0).max(40_000),
   voc: z.number().min(0).max(500),
   nox: z.number().min(0).max(500),
   luminosity: z
-    .number()
+    .int()
     .min(0)
     .max(254)
     .pipe(
@@ -95,7 +103,7 @@ const dataFormat6Schema = z.object({
         return Math.exp(val * delta) - 1
       })
     ),
-  sequence: z.number().min(0).max(65_534),
+  sequence: z.int().min(0).max(65_534),
   address: z.preprocess(macPreprocess, z.string()),
 })
 
@@ -107,45 +115,45 @@ const dataFormatE1Schema = z.object({
   dataFormat: z.literal(DATA_FORMAT_E1),
   calibration: z.boolean(),
   temperature: z
-    .number()
+    .int()
     .min(-32_767)
     .max(32_767)
     .pipe(z.transform((val) => val * 0.005)),
   humidity: z
-    .number()
+    .int()
     .min(0)
     .max(40_000)
     .pipe(z.transform((val) => val * 0.0025)),
   pressure: z
-    .number()
+    .int()
     .min(0)
     .max(65_534)
     .pipe(z.transform((val) => val + 50_000)),
   'pm1.0': z
-    .number()
+    .int()
     .min(0)
     .max(10_000)
     .pipe(z.transform((val) => val * 0.1)),
   'pm2.5': z
-    .number()
+    .int()
     .min(0)
     .max(10_000)
     .pipe(z.transform((val) => val * 0.1)),
   'pm4.0': z
-    .number()
+    .int()
     .min(0)
     .max(10_000)
     .pipe(z.transform((val) => val * 0.1)),
   'pm10.0': z
-    .number()
+    .int()
     .min(0)
     .max(10_000)
     .pipe(z.transform((val) => val * 0.1)),
-  co2: z.number().min(0).max(40_000),
+  co2: z.int().min(0).max(40_000),
   voc: z.number().min(0).max(500),
   nox: z.number().min(0).max(500),
-  luminosity: z.number().min(0).max(14_428_400),
-  sequence: z.number().min(0).max(16_777_214),
+  luminosity: z.preprocess((val: number) => val * 0.01, z.number().min(0).max(14_428_400)),
+  sequence: z.int().min(0).max(16_777_214),
   address: z.preprocess(macPreprocess, z.mac()),
 })
 
@@ -156,72 +164,76 @@ export const RuuviDataSchema = z
   .transform((data, ctx) => {
     const dataFormat = data.readUIntBE(0, 1).toString(16).toUpperCase()
 
-    if (dataFormat === DATA_FORMAT_5) {
-      return {
-        dataFormat,
-        temperature: data.readIntBE(1, 2),
-        humidity: data.readUIntBE(3, 2),
-        pressure: data.readUIntBE(5, 2),
-        accelerationX: data.readIntBE(7, 2),
-        accelerationY: data.readIntBE(9, 2),
-        accelerationZ: data.readIntBE(11, 2),
-        txPower: data.readUIntBE(13, 2) & 0x1f,
-        voltage: data.readUIntBE(13, 2) >> 5,
-        movement: data.readUIntBE(15, 1),
-        sequence: data.readUIntBE(16, 2),
-        address: data.readUIntBE(18, 6).toString(16),
-      } satisfies z.input<typeof dataFormat5Schema>
-    } else if (dataFormat === DATA_FORMAT_6) {
-      const flags = data.readUInt8(16)
-      const calibration = (flags & 0b0000_0001) === 1
-      const noxFlag = (flags & 0b1000_0000) >> 7
-      const vocFlag = (flags & 0b0100_0000) >> 6
+    switch (dataFormat) {
+      case DATA_FORMAT_5: {
+        return {
+          dataFormat,
+          temperature: data.readIntBE(1, 2),
+          humidity: data.readUIntBE(3, 2),
+          pressure: data.readUIntBE(5, 2),
+          accelerationX: data.readIntBE(7, 2),
+          accelerationY: data.readIntBE(9, 2),
+          accelerationZ: data.readIntBE(11, 2),
+          txPower: data.readUIntBE(13, 2),
+          voltage: data.readUIntBE(13, 2),
+          movement: data.readUIntBE(15, 1),
+          sequence: data.readUIntBE(16, 2),
+          address: data.readUIntBE(18, 6),
+        } satisfies z.input<typeof dataFormat5Schema>
+      }
+      case DATA_FORMAT_6: {
+        const flags = data.readUInt8(16)
+        const calibration = (flags & 0b0000_0001) === 1
+        const noxFlag = (flags & 0b1000_0000) >> 7
+        const vocFlag = (flags & 0b0100_0000) >> 6
 
-      return {
-        dataFormat,
-        calibration,
-        temperature: data.readIntBE(1, 2),
-        humidity: data.readUIntBE(3, 2),
-        pressure: data.readUIntBE(5, 2),
-        'pm2.5': data.readUIntBE(7, 2),
-        co2: data.readUIntBE(9, 2),
-        voc: data.readUIntBE(11, 1) * 2 + vocFlag,
-        nox: data.readUIntBE(12, 1) * 2 + noxFlag,
-        luminosity: data.readUInt8(13),
-        sequence: data.readUIntBE(15, 1),
-        address: data.readUIntBE(17, 3).toString(16),
-      } satisfies z.input<typeof dataFormat6Schema>
-    } else if (dataFormat === DATA_FORMAT_E1) {
-      const flags = data.readUInt8(28)
-      const calibration = (flags & 0b0000_0001) === 1
-      const noxFlag = (flags & 0b1000_0000) >> 7
-      const vocFlag = (flags & 0b0100_0000) >> 6
+        return {
+          dataFormat,
+          calibration,
+          temperature: data.readIntBE(1, 2),
+          humidity: data.readUIntBE(3, 2),
+          pressure: data.readUIntBE(5, 2),
+          'pm2.5': data.readUIntBE(7, 2),
+          co2: data.readUIntBE(9, 2),
+          voc: data.readUIntBE(11, 1) * 2 + vocFlag,
+          nox: data.readUIntBE(12, 1) * 2 + noxFlag,
+          luminosity: data.readUInt8(13),
+          sequence: data.readUIntBE(15, 1),
+          address: data.readUIntBE(17, 3),
+        } satisfies z.input<typeof dataFormat6Schema>
+      }
+      case DATA_FORMAT_E1: {
+        const flags = data.readUInt8(28)
+        const calibration = (flags & 0b0000_0001) === 1
+        const noxFlag = (flags & 0b1000_0000) >> 7
+        const vocFlag = (flags & 0b0100_0000) >> 6
 
-      return {
-        dataFormat,
-        calibration,
-        temperature: data.readIntBE(1, 2),
-        humidity: data.readUIntBE(3, 2),
-        pressure: data.readUIntBE(5, 2),
-        'pm1.0': data.readUIntBE(7, 2),
-        'pm2.5': data.readUIntBE(9, 2),
-        'pm4.0': data.readUIntBE(11, 2),
-        'pm10.0': data.readUIntBE(13, 2),
-        co2: data.readUIntBE(15, 2),
-        voc: data.readUIntBE(17, 1) * 2 + vocFlag,
-        nox: data.readUIntBE(18, 1) * 2 + noxFlag,
-        luminosity: data.readUIntBE(19, 3) * 0.01,
-        sequence: data.readUIntBE(25, 3),
-        address: data.readUIntBE(34, 6).toString(16),
-      } satisfies z.input<typeof dataFormatE1Schema>
-    } else {
-      ctx.issues.push({
-        code: 'custom',
-        message: 'Invalid input data format',
-        input: data,
-        received: dataFormat,
-        expected: DATA_FORMAT_E1,
-      })
+        return {
+          dataFormat,
+          calibration,
+          temperature: data.readIntBE(1, 2),
+          humidity: data.readUIntBE(3, 2),
+          pressure: data.readUIntBE(5, 2),
+          'pm1.0': data.readUIntBE(7, 2),
+          'pm2.5': data.readUIntBE(9, 2),
+          'pm4.0': data.readUIntBE(11, 2),
+          'pm10.0': data.readUIntBE(13, 2),
+          co2: data.readUIntBE(15, 2),
+          voc: data.readUIntBE(17, 1) * 2 + vocFlag,
+          nox: data.readUIntBE(18, 1) * 2 + noxFlag,
+          luminosity: data.readUIntBE(19, 3),
+          sequence: data.readUIntBE(25, 3),
+          address: data.readUIntBE(34, 6),
+        } satisfies z.input<typeof dataFormatE1Schema>
+      }
+      default:
+        ctx.issues.push({
+          code: 'custom',
+          message: 'Invalid input data format',
+          input: data,
+          received: dataFormat,
+          expected: DATA_FORMAT_E1,
+        })
     }
 
     return z.NEVER

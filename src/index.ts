@@ -1,4 +1,7 @@
 import { scanner } from '@scanner/scanner'
-import * as influxDbWriter from '@writers/influxdb-writer'
+import { createWriter } from '@writers/influxdb-writer'
+import { influxdb } from '@clients/influxdb-client'
 
-void scanner({ onEvent: influxDbWriter.handleEvent })
+const writer = createWriter({ client: influxdb })
+
+void scanner({ onEvent: writer.handleEvent })

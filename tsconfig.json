@@ -27,10 +27,12 @@
     "noPropertyAccessFromIndexSignature": false,
     "paths": {
       "src/*": ["./src/*"],
-      "@scanner/*": ["./src/scanner/*"],
-      "@writers/*": ["./src/writers/*"],
+      "config*": ["./config.ts"],
+      "@clients/*": ["./src/clients/*"],
       "@config/*": ["./src/config/*"],
-      "config*": ["./config.ts"]
+      "@scanner/*": ["./src/scanner/*"],
+      "@util/*": ["./src/util/*"],
+      "@writers/*": ["./src/writers/*"]
     }
   }
 }

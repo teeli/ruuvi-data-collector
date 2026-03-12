@@ -4,197 +4,167 @@ export const DATA_FORMAT_5 = '5' as const
 export const DATA_FORMAT_6 = '6' as const
 export const DATA_FORMAT_E1 = 'E1' as const
 
-const macPreprocess = (val: number): string => val.toString(16).toUpperCase().match(/.{2}/g)?.join(':') ?? ''
+const isUndef = <T>(val: T | undefined): val is undefined => val === undefined
 
-// codec for parsing luminosity values for data format 6
-const LUX_MAX_VALUE = 65535
-const LUX_MAX_CODE = 254
-const LUX_DELTA = Math.log(LUX_MAX_VALUE + 1) / LUX_MAX_CODE
+const byte = (byteLength: number, unsigned: boolean = false) => {
+  const length = 2 ** byteLength
+  const max = unsigned ? length : length / 2
+  const min = unsigned ? 0 : 1 - max
+  return z
+    .int()
+    .min(min)
+    .max(max)
+    .transform((value) => (value === max ? undefined : value))
+}
 
-const luminosityCodec = z.codec(z.number(), z.number(), {
-  decode: (code) => Math.exp(code * LUX_DELTA) - 1,
-  encode: (value) => Math.round(Math.log(Math.max(0, Math.min(value, LUX_MAX_VALUE)) + 1) / LUX_DELTA),
+const macCodec = z.codec(z.number(), z.string(), {
+  decode: (value) => value.toString(16).toUpperCase().match(/.{2}/g)?.join(':') ?? value.toString(16),
+  encode: (value) => parseInt(value.split(':').join(''), 16),
 })
 
-const toPrecision = (precision: number) =>
-  z.number().transform((v) => {
-    const factor = 10 ** precision
-    return Math.round(v * factor) / factor
-  })
+const txPowerCodec = z.codec(z.number().min(0).max(31), z.number().min(-40).max(22).optional(), {
+  decode: (value) => (value === 31 ? undefined : value * 2 - 40),
+  encode: (value) => (isUndef(value) ? 31 : (value + 40) / 2),
+})
+
+const voltageCodec = z.codec(z.number().min(0).max(2047), z.number().min(1.6).max(3.647).optional(), {
+  decode: (v) => (v === 2047 ? undefined : (1600 + v) / 1000),
+  encode: (v) => (isUndef(v) ? 2047 : v * 1000 - 1600),
+})
+
+const toPrecision = (precision: number) => (v: number | undefined) => {
+  if (isUndef(v)) {
+    return undefined
+  }
+  const factor = 10 ** precision
+  return Math.round(v * factor) / factor
+}
+
+const luminosityTransform = (value: number | undefined): number | undefined => {
+  const LUX_MAX_VALUE = 65535
+  const LUX_MAX_CODE = 254
+  const LUX_DELTA = Math.log(LUX_MAX_VALUE + 1) / LUX_MAX_CODE
+  return isUndef(value) ? undefined : Math.exp(value * LUX_DELTA) - 1
+}
+const luminosityExtendedTransform = (value: number | undefined): number | undefined =>
+  isUndef(value) ? undefined : value * 0.01
+const pmTransform = (val: number | undefined): number | undefined => (isUndef(val) ? undefined : val * 0.1)
+const temperatureTransform = (val: number | undefined): number | undefined => (isUndef(val) ? undefined : val * 0.005)
+const humidityTransform = (val: number | undefined): number | undefined => (isUndef(val) ? undefined : val * 0.0025)
+const pressureTransform = (val: number | undefined): number | undefined => (isUndef(val) ? undefined : val + 50_000)
+const accelerationTransform = (val: number | undefined): number | undefined => (isUndef(val) ? undefined : val / 1000)
+
+const baseSchema = z.object({
+  address: macCodec,
+  temperature: byte(16).transform(temperatureTransform).transform(toPrecision(3)),
+  humidity: byte(16, true).transform(humidityTransform).transform(toPrecision(4)),
+  pressure: byte(16, true).transform(pressureTransform),
+})
 
 /**
  * Ruuvi data format 5 schema
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2
  */
-const dataFormat5Schema = z.object({
+const ruuviTagSchema = baseSchema.extend({
   dataFormat: z.literal(DATA_FORMAT_5),
-  temperature: z
-    .int()
-    .min(-32_767)
-    .max(32_767)
-    .pipe(z.transform((val) => val * 0.005))
-    .pipe(toPrecision(3)),
-  humidity: z
-    .int()
-    .min(0)
-    .max(65_534)
-    .pipe(z.transform((val) => val * 0.0025))
-    .pipe(toPrecision(4)),
-  pressure: z
-    .int()
-    .min(0)
-    .max(65_534)
-    .pipe(z.transform((val) => val + 50_000)),
-  accelerationX: z
-    .int()
-    .min(-32_767)
-    .max(32_767)
-    .pipe(z.transform((val) => val / 1000))
-    .pipe(toPrecision(4)),
-  accelerationY: z
-    .int()
-    .min(-32_767)
-    .max(32_767)
-    .pipe(z.transform((val) => val / 1000))
-    .pipe(toPrecision(4)),
-  accelerationZ: z
-    .int()
-    .min(-32_767)
-    .max(32_767)
-    .pipe(z.transform((val) => val / 1000))
-    .pipe(toPrecision(4)),
-  txPower: z.preprocess(
-    (val: number) => val & 0x1f,
-    z
-      .number()
-      .min(0)
-      .max(30)
-      .pipe(z.transform((val) => val * 2 - 40))
-      .pipe(toPrecision(0))
-  ),
-  voltage: z.preprocess(
-    (val: number) => val >> 5,
-    z
-      .number()
-      .min(0)
-      .max(2_046)
-      .pipe(z.transform((val) => (1600 + val) / 1000))
-      .pipe(toPrecision(4))
-  ),
-  movement: z.int().min(0).max(254),
-  sequence: z.int().min(0).max(65_534),
-  address: z.preprocess(macPreprocess, z.mac()),
+  accelerationX: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
+  accelerationY: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
+  accelerationZ: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
+  txPower: txPowerCodec.transform(toPrecision(0)),
+  voltage: voltageCodec.transform(toPrecision(4)),
+  movement: byte(8, true),
+  sequence: byte(16, true),
 })
 
 /**
  * Ruuvi data format 6 schema
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-6
  */
-const dataFormat6Schema = z.object({
+const ruuviAirSchema = baseSchema.extend({
   dataFormat: z.literal(DATA_FORMAT_6),
+  'pm2.5': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
   calibration: z.boolean(),
-  temperature: z
-    .int()
-    .min(-32_767)
-    .max(32_767)
-    .pipe(z.transform((val) => val * 0.005))
-    .pipe(toPrecision(3)),
-  humidity: z
-    .int()
-    .min(0)
-    .max(40_000)
-    .pipe(z.transform((val) => val * 0.0025))
-    .pipe(toPrecision(4)),
-  pressure: z
-    .int()
-    .min(0)
-    .max(65_534)
-    .pipe(z.transform((val) => val + 50_000)),
-  'pm2.5': z
-    .int()
-    .min(0)
-    .max(10_000)
-    .pipe(z.transform((val) => val * 0.1))
-    .pipe(toPrecision(1)),
-  co2: z.int().min(0).max(40_000),
+  co2: byte(16, true),
   voc: z.number().min(0).max(500),
   nox: z.number().min(0).max(500),
-  luminosity: z
-    .int()
-    .min(0)
-    .max(254)
-    // RuuviAir often seems to report values over the maximum, so this prevents validation errors
-    .catch((ctx) => (ctx.issues.some((issue) => issue.code === 'too_big') ? 254 : 0))
-    .pipe(luminosityCodec)
-    .pipe(toPrecision(2)),
-  sequence: z.int().min(0).max(65_534),
-  address: z.preprocess(macPreprocess, z.string()),
+  luminosity: byte(8, true).transform(luminosityTransform).transform(toPrecision(2)),
+  sequence: byte(16, true),
 })
 
 /**
  * Ruuvi data format E1 schema
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-e1
  */
-const dataFormatE1Schema = z.object({
+const ruuviAirExtendedSchema = ruuviAirSchema.extend({
   dataFormat: z.literal(DATA_FORMAT_E1),
-  calibration: z.boolean(),
-  temperature: z
-    .int()
-    .min(-32_767)
-    .max(32_767)
-    .pipe(z.transform((val) => val * 0.005))
-    .pipe(toPrecision(3)),
-  humidity: z
-    .int()
-    .min(0)
-    .max(40_000)
-    .pipe(z.transform((val) => val * 0.0025))
-    .pipe(toPrecision(4)),
-  pressure: z
-    .int()
-    .min(0)
-    .max(65_534)
-    .pipe(z.transform((val) => val + 50_000)),
-  'pm1.0': z
-    .int()
-    .min(0)
-    .max(10_000)
-    .pipe(z.transform((val) => val * 0.1))
-    .pipe(toPrecision(1)),
-  'pm2.5': z
-    .int()
-    .min(0)
-    .max(10_000)
-    .pipe(z.transform((val) => val * 0.1))
-    .pipe(toPrecision(1)),
-  'pm4.0': z
-    .int()
-    .min(0)
-    .max(10_000)
-    .pipe(z.transform((val) => val * 0.1))
-    .pipe(toPrecision(1)),
-  'pm10.0': z
-    .int()
-    .min(0)
-    .max(10_000)
-    .pipe(z.transform((val) => val * 0.1))
-    .pipe(toPrecision(1)),
-  co2: z.int().min(0).max(40_000),
-  voc: z.number().min(0).max(500),
-  nox: z.number().min(0).max(500),
-  luminosity: z
-    .number()
-    .min(0)
-    .max(14_428_400)
-    // RuuviAir often seems to report values over the maximum, so this prevents validation errors
-    .catch((ctx) => (ctx.issues.some((issue) => issue.code === 'too_big') ? 14_428_400 : 0))
-    .pipe(z.transform((val) => val * 0.01))
-    .pipe(toPrecision(2)),
+  'pm1.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
+  'pm4.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
+  'pm10.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
+  luminosity: byte(24, true).transform(luminosityExtendedTransform).transform(toPrecision(2)),
   sequence: z.int().min(0).max(16_777_214),
-  address: z.preprocess(macPreprocess, z.mac()),
 })
 
-const DataFormatUnion = z.discriminatedUnion('dataFormat', [dataFormat5Schema, dataFormat6Schema, dataFormatE1Schema])
+const parseRuuviTagFields = (data: Buffer): Omit<z.input<typeof ruuviTagSchema>, 'dataFormat'> => ({
+  temperature: data.readIntBE(1, 2),
+  humidity: data.readUIntBE(3, 2),
+  pressure: data.readUIntBE(5, 2),
+  accelerationX: data.readIntBE(7, 2),
+  accelerationY: data.readIntBE(9, 2),
+  accelerationZ: data.readIntBE(11, 2),
+  txPower: data.readUIntBE(13, 2) & 0x1f,
+  voltage: data.readUIntBE(13, 2) >> 5,
+  // TODO: Can we just pass powerInfo and get txPower nad voltage from there?
+  // powerInfo: data.readUIntBE(13, 2),
+  movement: data.readUIntBE(15, 1),
+  sequence: data.readUIntBE(16, 2),
+  address: data.readUIntBE(18, 6),
+})
+
+const parseRuuviAirFlags = (flags: number) => {
+  const calibration = (flags & 0b0000_0001) === 1
+  const noxFlag = (flags & 0b1000_0000) >> 7
+  const vocFlag = (flags & 0b0100_0000) >> 6
+  return { calibration, noxFlag, vocFlag }
+}
+
+const parseRuuviAirFields = (data: Buffer): Omit<z.input<typeof ruuviAirSchema>, 'dataFormat'> => {
+  const { calibration, noxFlag, vocFlag } = parseRuuviAirFlags(data.readUInt8(16))
+
+  return {
+    calibration,
+    temperature: data.readIntBE(1, 2),
+    humidity: data.readUIntBE(3, 2),
+    pressure: data.readUIntBE(5, 2),
+    'pm2.5': data.readUIntBE(7, 2),
+    co2: data.readUIntBE(9, 2),
+    voc: data.readUIntBE(11, 1) * 2 + vocFlag,
+    nox: data.readUIntBE(12, 1) * 2 + noxFlag,
+    luminosity: data.readUInt8(13),
+    sequence: data.readUIntBE(15, 1),
+    address: data.readUIntBE(17, 3),
+  }
+}
+
+const parseRuuviAirExtendedFields = (data: Buffer): Omit<z.input<typeof ruuviAirExtendedSchema>, 'dataFormat'> => {
+  const { calibration, noxFlag, vocFlag } = parseRuuviAirFlags(data.readUInt8(28))
+
+  return {
+    calibration,
+    temperature: data.readIntBE(1, 2),
+    humidity: data.readUIntBE(3, 2),
+    pressure: data.readUIntBE(5, 2),
+    'pm1.0': data.readUIntBE(7, 2),
+    'pm2.5': data.readUIntBE(9, 2),
+    'pm4.0': data.readUIntBE(11, 2),
+    'pm10.0': data.readUIntBE(13, 2),
+    co2: data.readUIntBE(15, 2),
+    voc: data.readUIntBE(17, 1) * 2 + vocFlag,
+    nox: data.readUIntBE(18, 1) * 2 + noxFlag,
+    luminosity: data.readUIntBE(19, 3),
+    sequence: data.readUIntBE(25, 3),
+    address: data.readUIntBE(34, 6),
+  }
+}
 
 export const RuuviDataSchema = z
   .instanceof(Buffer)
@@ -203,65 +173,13 @@ export const RuuviDataSchema = z
 
     switch (dataFormat) {
       case DATA_FORMAT_5: {
-        return {
-          dataFormat,
-          temperature: data.readIntBE(1, 2),
-          humidity: data.readUIntBE(3, 2),
-          pressure: data.readUIntBE(5, 2),
-          accelerationX: data.readIntBE(7, 2),
-          accelerationY: data.readIntBE(9, 2),
-          accelerationZ: data.readIntBE(11, 2),
-          txPower: data.readUIntBE(13, 2),
-          voltage: data.readUIntBE(13, 2),
-          movement: data.readUIntBE(15, 1),
-          sequence: data.readUIntBE(16, 2),
-          address: data.readUIntBE(18, 6),
-        } satisfies z.input<typeof dataFormat5Schema>
+        return { dataFormat, ...parseRuuviTagFields(data) }
       }
       case DATA_FORMAT_6: {
-        const flags = data.readUInt8(16)
-        const calibration = (flags & 0b0000_0001) === 1
-        const noxFlag = (flags & 0b1000_0000) >> 7
-        const vocFlag = (flags & 0b0100_0000) >> 6
-
-        return {
-          dataFormat,
-          calibration,
-          temperature: data.readIntBE(1, 2),
-          humidity: data.readUIntBE(3, 2),
-          pressure: data.readUIntBE(5, 2),
-          'pm2.5': data.readUIntBE(7, 2),
-          co2: data.readUIntBE(9, 2),
-          voc: data.readUIntBE(11, 1) * 2 + vocFlag,
-          nox: data.readUIntBE(12, 1) * 2 + noxFlag,
-          luminosity: data.readUInt8(13),
-          sequence: data.readUIntBE(15, 1),
-          address: data.readUIntBE(17, 3),
-        } satisfies z.input<typeof dataFormat6Schema>
+        return { dataFormat, ...parseRuuviAirFields(data) }
       }
       case DATA_FORMAT_E1: {
-        const flags = data.readUInt8(28)
-        const calibration = (flags & 0b0000_0001) === 1
-        const noxFlag = (flags & 0b1000_0000) >> 7
-        const vocFlag = (flags & 0b0100_0000) >> 6
-
-        return {
-          dataFormat,
-          calibration,
-          temperature: data.readIntBE(1, 2),
-          humidity: data.readUIntBE(3, 2),
-          pressure: data.readUIntBE(5, 2),
-          'pm1.0': data.readUIntBE(7, 2),
-          'pm2.5': data.readUIntBE(9, 2),
-          'pm4.0': data.readUIntBE(11, 2),
-          'pm10.0': data.readUIntBE(13, 2),
-          co2: data.readUIntBE(15, 2),
-          voc: data.readUIntBE(17, 1) * 2 + vocFlag,
-          nox: data.readUIntBE(18, 1) * 2 + noxFlag,
-          luminosity: data.readUIntBE(19, 3),
-          sequence: data.readUIntBE(25, 3),
-          address: data.readUIntBE(34, 6),
-        } satisfies z.input<typeof dataFormatE1Schema>
+        return { dataFormat, ...parseRuuviAirExtendedFields(data) }
       }
       default:
         ctx.issues.push({
@@ -275,6 +193,6 @@ export const RuuviDataSchema = z
 
     return z.NEVER
   })
-  .pipe(DataFormatUnion)
+  .pipe(z.discriminatedUnion('dataFormat', [ruuviTagSchema, ruuviAirSchema, ruuviAirExtendedSchema]))
 
 export type RuuviData = z.output<typeof RuuviDataSchema>

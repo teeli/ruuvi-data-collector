@@ -9,6 +9,8 @@ const ignoreFields = ['calibration']
 
 const lastSequence: Record<string, number> = {}
 
+const isUndef = <T>(val: T | undefined): val is undefined => val === undefined
+
 export const handleEvent = async (event: ScannerEvent) => {
   const { address, sequence } = event.data
 
@@ -17,15 +19,16 @@ export const handleEvent = async (event: ScannerEvent) => {
     return
   }
 
-  const point = Object.entries(event.data)
-    .filter(([key, value]) => !ignoreFields.includes(key) && value !== undefined)
-    .reduce((point, [key, value]) => {
-      if (tagFields.includes(key)) {
-        return point.tag(key, value.toString())
-      }
+  const point = Object.entries(event.data).reduce((point, [key, value]) => {
+    if (ignoreFields.includes(key) || isUndef(value)) {
+      return point
+    }
+    if (tagFields.includes(key)) {
+      return point.tag(key, value.toString())
+    }
 
-      return point.floatField(key, value)
-    }, new Point('ruuvi_measurement'))
+    return point.floatField(key, value)
+  }, new Point('ruuvi_measurement'))
 
   if (config?.aliases?.[address]) {
     point.tag('alias', config?.aliases?.[address])

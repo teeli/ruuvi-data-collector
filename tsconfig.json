@@ -27,7 +27,6 @@
     "noPropertyAccessFromIndexSignature": false,
     "paths": {
       "src/*": ["./src/*"],
-      "config*": ["./config.ts"],
       "@clients/*": ["./src/clients/*"],
       "@config/*": ["./src/config/*"],
       "@scanner/*": ["./src/scanner/*"],

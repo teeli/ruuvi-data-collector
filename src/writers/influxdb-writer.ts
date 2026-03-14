@@ -2,7 +2,7 @@ import type { InfluxDB } from '@influxdata/influxdb-client'
 import { Point } from '@influxdata/influxdb-client'
 import type { ScannerEvent } from '@scanner/scanner'
 import { isNil } from '@util/is-nil.ts'
-import config from 'config'
+import { getConfig } from '@config/config'
 
 const tagFields = ['dataFormat', 'address']
 const ignoreFields = ['calibration']
@@ -13,6 +13,7 @@ type InfluxDbWriterConfig = { client: InfluxDB }
 type InfluxDbWriter = (config: InfluxDbWriterConfig) => { handleEvent: HandleEvent }
 
 export const createWriter: InfluxDbWriter = ({ client }) => {
+  const config = getConfig()
   const influxDb = client.getWriteApi(config.influxdb.org, config.influxdb.bucket, 'ns')
 
   const handleEvent: HandleEvent = async (event) => {

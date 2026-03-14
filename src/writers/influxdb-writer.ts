@@ -6,7 +6,7 @@ import { getConfig } from '@config/config'
 
 const tagFields = ['dataFormat', 'address']
 const ignoreFields = ['calibration']
-const lastSequence: Record<string, number> = {}
+const lastSequence: Record<string, number | undefined> = {}
 
 type HandleEvent = (event: ScannerEvent) => Promise<void>
 type InfluxDbWriterConfig = { client: InfluxDB }
@@ -23,6 +23,8 @@ export const createWriter: InfluxDbWriter = ({ client }) => {
       // data has already been received, don't write it again
       return
     }
+
+    lastSequence[address] = sequence
 
     const point = Object.entries(event.data).reduce((point, [key, value]) => {
       if (ignoreFields.includes(key) || isNil(value)) {

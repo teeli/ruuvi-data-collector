@@ -12,7 +12,7 @@ export type ScannerEvent = { metadata: ScannerEventMetadata; data: RuuviData }
 type ScannerParams = { onEvent: (event: ScannerEvent) => void }
 type Scanner = (params: ScannerParams) => Promise<void>
 
-export const scanner: Scanner = async (params) => {
+export const scanner: Scanner = async (params): Promise<void> => {
   const handleDiscover = (peripheral: Peripheral): void => {
     if (isRuuviDevice(peripheral)) {
       if (!ruuviDevices.has(peripheral.id) && peripheral.connectable) {
@@ -46,7 +46,10 @@ const readManufacturerData = (peripheral: Peripheral) => {
   return manufacturerData.slice(2)
 }
 
-const isRuuviDevice = (peripheral: Peripheral) => {
-  const manufacturerData = peripheral.advertisement.manufacturerData
-  return manufacturerData && manufacturerData.readUInt16LE(0) === RUUVI_COMPANY_CODE
+const isRuuviDevice = (peripheral: Peripheral): boolean => {
+  if (!peripheral.advertisement.manufacturerData || peripheral.advertisement.manufacturerData.length < 2) {
+    return false
+  }
+
+  return peripheral.advertisement.manufacturerData.readUInt16LE(0) === RUUVI_COMPANY_CODE
 }

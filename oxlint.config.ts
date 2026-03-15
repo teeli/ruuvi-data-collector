@@ -2,6 +2,10 @@ import { defineConfig } from 'oxlint'
 
 /* oxlint-disable no-default-export */
 export default defineConfig({
+  ignorePatterns: [
+    // ignore configuration example file from lint
+    'src/config/example.ts',
+  ],
   categories: { correctness: 'error' },
   plugins: ['eslint', 'oxc', 'node', 'typescript', 'unicorn', 'import', 'vitest'],
   rules: {

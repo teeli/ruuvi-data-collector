@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 const ConfigSchema = z.object({
   influxdb: z.object({
-    connection: z.object({ url: z.url().optional().default('http://localhost:8086'), token: z.string() }),
+    connection: z.object({ url: z.url().prefault('http://localhost:8086'), token: z.string() }),
     org: z.string(),
     bucket: z.string(),
   }),
@@ -10,11 +10,12 @@ const ConfigSchema = z.object({
   aliases: z.record(z.string(), z.string()).optional(),
 })
 
-type Config = z.infer<typeof ConfigSchema>
+export type ConfigInput = z.input<typeof ConfigSchema>
+export type Config = z.output<typeof ConfigSchema>
 
 let _config: Config
 
-export const defineConfig = (config: Config): void => {
+export const defineConfig = (config: ConfigInput): void => {
   _config = ConfigSchema.parse(config)
 }
 

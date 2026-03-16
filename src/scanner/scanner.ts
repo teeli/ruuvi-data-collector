@@ -17,7 +17,6 @@ export const scanner: Scanner = async (params): Promise<void> => {
     if (isRuuviDevice(peripheral)) {
       if (!ruuviDevices.has(peripheral.id) && peripheral.connectable) {
         ruuviDevices.set(peripheral.id, peripheral)
-        void peripheral.connectAsync()
       }
 
       const { data, success, error } = RuuviDataSchema.safeParse(readManufacturerData(peripheral))

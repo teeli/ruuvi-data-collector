@@ -1,0 +1,20 @@
+#
+# Ruuvi Data Collector systemd service example
+#
+
+[Unit]
+Description=Ruuvi Data Collector
+After=network.target
+
+[Service]
+Type=simple
+Restart=on-failure
+# Change these to your user/group
+User=user
+Group=group
+# Change this to the application path
+WorkingDirectory=/path/to/ruuvi-data-collector
+ExecStart=bun run start
+
+[Install]
+WantedBy=multi-user.target

@@ -46,6 +46,21 @@ const voltageCodec = z.codec(z.number().min(0).max(2047), z.number().min(1.6).ma
   encode: (v) => (isNil(v) ? 2047 : v * 1000 - 1600),
 })
 
+const powerInfoTransform = <T extends { powerInfo: number | undefined }>(
+  value: T
+): Omit<T, 'powerInfo'> & { txPower: number | undefined; voltage: number | undefined } => {
+  const { powerInfo, ...rest } = value
+
+  if (isNil(powerInfo)) {
+    return { ...rest, txPower: undefined, voltage: undefined }
+  }
+
+  const txPower = txPowerCodec.decode(powerInfo & 0x1f)
+  const voltage = voltageCodec.decode(powerInfo >> 5)
+
+  return { ...rest, txPower: toPrecision(0)(txPower), voltage: toPrecision(4)(voltage) }
+}
+
 const toPrecision = (precision: number) => (v: number | undefined) => {
   if (isNil(v)) {
     return undefined
@@ -97,17 +112,18 @@ const baseSchema = z.object({
  * Ruuvi data format 5 schema
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2
  */
-const ruuviTagSchema = z.object({
-  ...baseSchema.shape,
-  dataFormat: z.literal(DATA_FORMAT_5),
-  accelerationX: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
-  accelerationY: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
-  accelerationZ: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
-  txPower: txPowerCodec.transform(toPrecision(0)),
-  voltage: voltageCodec.transform(toPrecision(4)),
-  movement: byte(8, true),
-  sequence: byte(16, true),
-})
+const ruuviTagSchema = z
+  .object({
+    ...baseSchema.shape,
+    dataFormat: z.literal(DATA_FORMAT_5),
+    accelerationX: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
+    accelerationY: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
+    accelerationZ: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
+    powerInfo: byte(16, true),
+    movement: byte(8, true),
+    sequence: byte(16, true),
+  })
+  .transform(powerInfoTransform)
 
 const ruuviAirBaseSchema = z.object({
   ...baseSchema.shape,
@@ -150,10 +166,7 @@ const parseRuuviTagFields = (data: Buffer): Omit<z.input<typeof ruuviTagSchema>,
   accelerationX: data.readIntBE(7, 2),
   accelerationY: data.readIntBE(9, 2),
   accelerationZ: data.readIntBE(11, 2),
-  txPower: data.readUIntBE(13, 2) & 0x1f,
-  voltage: data.readUIntBE(13, 2) >> 5,
-  // TODO: Can we just pass powerInfo and get txPower nad voltage from there?
-  // powerInfo: data.readUIntBE(13, 2),
+  powerInfo: data.readUIntBE(13, 2),
   movement: data.readUIntBE(15, 1),
   sequence: data.readUIntBE(16, 2),
   address: data.readUIntBE(18, 6),

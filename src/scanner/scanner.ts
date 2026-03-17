@@ -30,10 +30,23 @@ export const scanner: Scanner = async (params): Promise<void> => {
     }
   }
 
+  noble.on('stateChange', async (state) => {
+    if (state === 'poweredOn') {
+      try {
+        await noble.startScanningAsync(undefined, true)
+      } catch (e) {
+        console.error('Bluetooth LE scan start failed', e)
+        await noble.stopScanningAsync()
+      }
+    } else if (state === 'poweredOff') {
+      await noble.stopScanningAsync()
+    }
+  })
+
+  noble.on('discover', handleDiscover)
+
   try {
     await noble.waitForPoweredOnAsync()
-    await noble.startScanningAsync()
-    noble.on('discover', handleDiscover)
   } catch (e) {
     console.error('Bluetooth LE discovery failed', e)
     await noble.stopScanningAsync()

@@ -8,11 +8,14 @@ const nobleMock = vi.mocked(noble)
 
 const onEvent = vi.fn()
 
-type CustomContext = TestContext & { discover: Function }
+type CustomContext = TestContext & { discover: Function; stateChange: Function }
 
 describe('scanner', () => {
   beforeEach<CustomContext>(async (context) => {
     nobleMock.on.mockImplementation((event, listener) => {
+      if (event === 'stateChange') {
+        context.stateChange = listener
+      }
       if (event === 'discover') {
         context.discover = listener
       }
@@ -27,24 +30,40 @@ describe('scanner', () => {
     vi.resetAllMocks()
   })
 
-  test<CustomContext>('should call onEvent when ruuvi device is discovered', async ({ expect, discover }) => {
-    const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
-    const connectAsync = vi.fn()
-    discover({
-      advertisement: { manufacturerData: data },
-      id: 'dummy-ruuvi-peripheral',
-      connectable: true,
-      connectAsync,
-    })
-    discover({
-      advertisement: { manufacturerData: data },
-      id: 'dummy-ruuvi-peripheral',
-      connectable: true,
-      connectAsync,
+  test<CustomContext>('should start scanning when adapter is powered on', async ({ expect, stateChange }) => {
+    stateChange('poweredOn')
+
+    expect(nobleMock.waitForPoweredOnAsync).toHaveBeenCalledTimes(1)
+    expect(nobleMock.startScanningAsync).toHaveBeenCalledTimes(1)
+    expect(nobleMock.startScanningAsync).toHaveBeenCalledWith(undefined, true)
+    expect(nobleMock.stopScanningAsync).not.toHaveBeenCalled()
+  })
+
+  test<CustomContext>('should stop scanning when adapter is powered off', async ({ expect, stateChange }) => {
+    stateChange('poweredOff')
+
+    expect(nobleMock.waitForPoweredOnAsync).toHaveBeenCalledTimes(1)
+    expect(nobleMock.startScanningAsync).not.toHaveBeenCalled()
+    expect(nobleMock.stopScanningAsync).toHaveBeenCalledTimes(1)
+  })
+
+  test<CustomContext>('should stop scanning when start scanning throws', async ({ expect, stateChange }) => {
+    nobleMock.startScanningAsync.mockImplementation(() => {
+      throw new Error('mock error')
     })
 
-    // should only connect once to the same peripheral
-    expect(connectAsync).toHaveBeenCalledTimes(1)
+    stateChange('poweredOn')
+
+    expect(nobleMock.waitForPoweredOnAsync).toHaveBeenCalledTimes(1)
+    expect(nobleMock.startScanningAsync).toHaveBeenCalledTimes(1)
+    expect(nobleMock.startScanningAsync).toHaveBeenCalledWith(undefined, true)
+    expect(nobleMock.stopScanningAsync).toHaveBeenCalledTimes(1)
+  })
+
+  test<CustomContext>('should call onEvent when ruuvi device is discovered', async ({ expect, discover }) => {
+    const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
+    discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
+    discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
 
     // discover called two times
     expect(onEvent).toHaveBeenCalledTimes(2)
@@ -69,28 +88,15 @@ describe('scanner', () => {
 
   test<CustomContext>('should not call onEvent when invalid data is received', async ({ expect, discover }) => {
     const data = Buffer.from('9904058000FFFFFFFF800080008000FFFFFFFFFFFFFFFFFFFFFF', 'hex')
-    const connectAsync = vi.fn()
-    discover({
-      advertisement: { manufacturerData: data },
-      id: 'dummy-ruuvi-peripheral',
-      connectable: true,
-      connectAsync,
-    })
+    discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
 
     expect(onEvent).not.toHaveBeenCalled()
   })
 
   test<CustomContext>('should not call onEvent when non-ruuvi device is discovered', async ({ expect, discover }) => {
     const data = Buffer.from('00000512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
-    const connectAsync = vi.fn()
-    discover({
-      advertisement: { manufacturerData: data },
-      id: 'dummy-peripheral-not-ruuvi',
-      connectable: true,
-      connectAsync,
-    })
+    discover({ advertisement: { manufacturerData: data }, id: 'dummy-peripheral-not-ruuvi' })
 
-    expect(connectAsync).not.toHaveBeenCalled()
     expect(onEvent).not.toHaveBeenCalled()
   })
 })

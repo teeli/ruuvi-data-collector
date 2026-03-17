@@ -67,6 +67,7 @@ describe('influxdb-writer', () => {
         nox: 2,
         voc: 3,
         sequence: 4,
+        iaqs: undefined,
       },
       metadata: { timestamp: new Date() },
     })
@@ -97,6 +98,7 @@ describe('influxdb-writer', () => {
         nox: 2,
         voc: 3,
         sequence: 5,
+        iaqs: undefined,
       },
       metadata: { timestamp: new Date() },
     } satisfies ScannerEvent

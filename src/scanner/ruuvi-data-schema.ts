@@ -1,10 +1,24 @@
 import * as z from 'zod'
+import { isNil } from '@util/is-nil'
+import { clamp } from '@util/math'
 
 export const DATA_FORMAT_5 = '5' as const
 export const DATA_FORMAT_6 = '6' as const
 export const DATA_FORMAT_E1 = 'E1' as const
 
-const isUndef = <T>(val: T | undefined): val is undefined => val === undefined
+// Luminosity calculation constants
+const LUX_MAX_VALUE = 65535
+const LUX_MAX_CODE = 254
+const LUX_DELTA = Math.log(LUX_MAX_VALUE + 1) / LUX_MAX_CODE
+
+// IAQS calculation constants
+const AQI_MAX = 100
+const PM25_MAX = 60
+const PM25_MIN = 0
+const PM25_SCALE = AQI_MAX / (PM25_MAX - PM25_MIN) // ≈ 1.6667
+const CO2_MAX = 2300
+const CO2_MIN = 420
+const CO2_SCALE = AQI_MAX / (CO2_MAX - CO2_MIN) // ≈ 0.05319
 
 const byte = (byteLength: number, unsigned: boolean = false) => {
   const length = 2 ** byteLength
@@ -24,35 +38,68 @@ const macCodec = z.codec(z.number(), z.string(), {
 
 const txPowerCodec = z.codec(z.number().min(0).max(31), z.number().min(-40).max(22).optional(), {
   decode: (value) => (value === 31 ? undefined : value * 2 - 40),
-  encode: (value) => (isUndef(value) ? 31 : (value + 40) / 2),
+  encode: (value) => (isNil(value) ? 31 : (value + 40) / 2),
 })
 
 const voltageCodec = z.codec(z.number().min(0).max(2047), z.number().min(1.6).max(3.647).optional(), {
   decode: (v) => (v === 2047 ? undefined : (1600 + v) / 1000),
-  encode: (v) => (isUndef(v) ? 2047 : v * 1000 - 1600),
+  encode: (v) => (isNil(v) ? 2047 : v * 1000 - 1600),
 })
 
+const powerInfoTransform = <T extends { powerInfo: number | undefined }>(
+  value: T
+): Omit<T, 'powerInfo'> & { txPower: number | undefined; voltage: number | undefined } => {
+  const { powerInfo, ...rest } = value
+
+  if (isNil(powerInfo)) {
+    return { ...rest, txPower: undefined, voltage: undefined }
+  }
+
+  const txPower = txPowerCodec.decode(powerInfo & 0x1f)
+  const voltage = voltageCodec.decode(powerInfo >> 5)
+
+  return { ...rest, txPower: toPrecision(0)(txPower), voltage: toPrecision(4)(voltage) }
+}
+
 const toPrecision = (precision: number) => (v: number | undefined) => {
-  if (isUndef(v)) {
+  if (isNil(v)) {
     return undefined
   }
+
   const factor = 10 ** precision
   return Math.round(v * factor) / factor
 }
 
-const luminosityTransform = (value: number | undefined): number | undefined => {
-  const LUX_MAX_VALUE = 65535
-  const LUX_MAX_CODE = 254
-  const LUX_DELTA = Math.log(LUX_MAX_VALUE + 1) / LUX_MAX_CODE
-  return isUndef(value) ? undefined : Math.exp(value * LUX_DELTA) - 1
-}
+const luminosityTransform = (value: number | undefined): number | undefined =>
+  isNil(value) ? undefined : Math.exp(value * LUX_DELTA) - 1
 const luminosityExtendedTransform = (value: number | undefined): number | undefined =>
-  isUndef(value) ? undefined : value * 0.01
-const pmTransform = (val: number | undefined): number | undefined => (isUndef(val) ? undefined : val * 0.1)
-const temperatureTransform = (val: number | undefined): number | undefined => (isUndef(val) ? undefined : val * 0.005)
-const humidityTransform = (val: number | undefined): number | undefined => (isUndef(val) ? undefined : val * 0.0025)
-const pressureTransform = (val: number | undefined): number | undefined => (isUndef(val) ? undefined : val + 50_000)
-const accelerationTransform = (val: number | undefined): number | undefined => (isUndef(val) ? undefined : val / 1000)
+  isNil(value) ? undefined : value * 0.01
+const pmTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : val * 0.1)
+const temperatureTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : val * 0.005)
+const humidityTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : val * 0.0025)
+const pressureTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : val + 50_000)
+const accelerationTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : val / 1000)
+
+/**
+ * https://docs.ruuvi.com/ruuvi-air-firmware/ruuvi-indoor-air-quality-score-iaqs
+ */
+const iaqsTransform = <T extends { 'pm2.5': number | undefined; co2: number | undefined }>(
+  value: T
+): T & { iaqs: number | undefined } => {
+  if (isNil(value['pm2.5']) || isNil(value.co2)) {
+    return { ...value, iaqs: undefined }
+  }
+
+  const pm25 = clamp(value['pm2.5'], PM25_MIN, PM25_MAX)
+  const co2 = clamp(value.co2, CO2_MIN, CO2_MAX)
+
+  const dx = (pm25 - PM25_MIN) * PM25_SCALE
+  const dy = (co2 - CO2_MIN) * CO2_SCALE
+
+  const r = Math.hypot(dx, dy)
+  const iaqs = toPrecision(2)(clamp(AQI_MAX - r, 0, AQI_MAX))
+  return { ...value, iaqs }
+}
 
 const baseSchema = z.object({
   address: macCodec,
@@ -65,22 +112,21 @@ const baseSchema = z.object({
  * Ruuvi data format 5 schema
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2
  */
-const ruuviTagSchema = baseSchema.extend({
-  dataFormat: z.literal(DATA_FORMAT_5),
-  accelerationX: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
-  accelerationY: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
-  accelerationZ: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
-  txPower: txPowerCodec.transform(toPrecision(0)),
-  voltage: voltageCodec.transform(toPrecision(4)),
-  movement: byte(8, true),
-  sequence: byte(16, true),
-})
+const ruuviTagSchema = z
+  .object({
+    ...baseSchema.shape,
+    dataFormat: z.literal(DATA_FORMAT_5),
+    accelerationX: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
+    accelerationY: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
+    accelerationZ: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
+    powerInfo: byte(16, true),
+    movement: byte(8, true),
+    sequence: byte(16, true),
+  })
+  .transform(powerInfoTransform)
 
-/**
- * Ruuvi data format 6 schema
- * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-6
- */
-const ruuviAirSchema = baseSchema.extend({
+const ruuviAirBaseSchema = z.object({
+  ...baseSchema.shape,
   dataFormat: z.literal(DATA_FORMAT_6),
   'pm2.5': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
   calibration: z.boolean(),
@@ -92,17 +138,26 @@ const ruuviAirSchema = baseSchema.extend({
 })
 
 /**
+ * Ruuvi data format 6 schema
+ * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-6
+ */
+const ruuviAirSchema = z.object({ ...ruuviAirBaseSchema.shape }).transform(iaqsTransform)
+
+/**
  * Ruuvi data format E1 schema
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-e1
  */
-const ruuviAirExtendedSchema = ruuviAirSchema.extend({
-  dataFormat: z.literal(DATA_FORMAT_E1),
-  'pm1.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
-  'pm4.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
-  'pm10.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
-  luminosity: byte(24, true).transform(luminosityExtendedTransform).transform(toPrecision(2)),
-  sequence: z.int().min(0).max(16_777_214),
-})
+const ruuviAirExtendedSchema = z
+  .object({
+    ...ruuviAirBaseSchema.shape,
+    dataFormat: z.literal(DATA_FORMAT_E1),
+    'pm1.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
+    'pm4.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
+    'pm10.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
+    luminosity: byte(24, true).transform(luminosityExtendedTransform).transform(toPrecision(2)),
+    sequence: z.int().min(0).max(16_777_214),
+  })
+  .transform(iaqsTransform)
 
 const parseRuuviTagFields = (data: Buffer): Omit<z.input<typeof ruuviTagSchema>, 'dataFormat'> => ({
   temperature: data.readIntBE(1, 2),
@@ -111,10 +166,7 @@ const parseRuuviTagFields = (data: Buffer): Omit<z.input<typeof ruuviTagSchema>,
   accelerationX: data.readIntBE(7, 2),
   accelerationY: data.readIntBE(9, 2),
   accelerationZ: data.readIntBE(11, 2),
-  txPower: data.readUIntBE(13, 2) & 0x1f,
-  voltage: data.readUIntBE(13, 2) >> 5,
-  // TODO: Can we just pass powerInfo and get txPower nad voltage from there?
-  // powerInfo: data.readUIntBE(13, 2),
+  powerInfo: data.readUIntBE(13, 2),
   movement: data.readUIntBE(15, 1),
   sequence: data.readUIntBE(16, 2),
   address: data.readUIntBE(18, 6),

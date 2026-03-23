@@ -1,3 +1,4 @@
+/* oxlint-disable no-console */
 import path from 'path'
 import url from 'url'
 const target = process.cwd()

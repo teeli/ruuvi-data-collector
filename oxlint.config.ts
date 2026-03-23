@@ -17,5 +17,6 @@ export default defineConfig({
     'import/consistent-type-specifier-style': ['error', 'prefer-top-level'],
     'import/no-default-export': 'error',
     'typescript/consistent-type-imports': ['error', { fixStyle: 'separate-type-imports' }],
+    'no-console': 'error',
   },
 })

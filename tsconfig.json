@@ -29,6 +29,7 @@
       "src/*": ["./src/*"],
       "@clients/*": ["./src/clients/*"],
       "@config/*": ["./src/config/*"],
+      "@logger/*": ["./src/logger/*"],
       "@scanner/*": ["./src/scanner/*"],
       "@util/*": ["./src/util/*"],
       "@writers/*": ["./src/writers/*"]

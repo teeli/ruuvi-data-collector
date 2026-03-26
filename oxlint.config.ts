@@ -18,5 +18,7 @@ export default defineConfig({
     'import/no-default-export': 'error',
     'typescript/consistent-type-imports': ['error', { fixStyle: 'separate-type-imports' }],
     'no-console': 'error',
+    'import/extensions': ['error', 'never'],
+    'unicorn/filename-case': ['error', { case: 'kebabCase' }],
   },
 })

@@ -1,13 +1,16 @@
 /* oxlint-disable no-console */
 import path from 'path'
 import url from 'url'
+
 const target = process.cwd()
 const dirname = path.dirname(url.fileURLToPath(import.meta.url))
-const input = Bun.file(path.join(dirname, 'example.ts'))
+const templatePath = path.join(dirname, '../assets/config-template.ts')
 const configFileName = 'config.ts'
-const output = Bun.file(path.join(target, configFileName))
+const outputPath = path.join(target, configFileName)
 
-const generate = async (): Promise<void> => {
+const configGenerate = async (): Promise<void> => {
+  const input = Bun.file(templatePath)
+  const output = Bun.file(outputPath)
   console.log('Creating configuration file.')
 
   if (!(await input.exists())) {
@@ -20,8 +23,11 @@ const generate = async (): Promise<void> => {
     process.exit(1)
   }
 
-  await Bun.write(output, input)
+  const writer = output.writer()
+  writer.write(await input.arrayBuffer())
+  writer.end()
+
   console.log('Generated example config.')
 }
 
-void generate()
+await configGenerate()

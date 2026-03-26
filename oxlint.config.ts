@@ -4,7 +4,7 @@ import { defineConfig } from 'oxlint'
 export default defineConfig({
   ignorePatterns: [
     // ignore configuration example file from lint
-    'src/config/example.ts',
+    'src/cli/assets/*.ts',
   ],
   categories: { correctness: 'error' },
   plugins: ['eslint', 'oxc', 'node', 'typescript', 'unicorn', 'import', 'vitest'],

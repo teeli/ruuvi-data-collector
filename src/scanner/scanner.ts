@@ -2,8 +2,11 @@ import { RuuviDataSchema } from '@scanner/ruuvi-data-schema'
 import type { RuuviData } from '@scanner/ruuvi-data-schema'
 import type { Peripheral } from '@stoprocent/noble'
 import noble from '@stoprocent/noble'
+import { getLogger } from '@logtape/logtape'
 
 const RUUVI_COMPANY_CODE = 0x0499
+
+const logger = getLogger(['ruuvi', 'scanner'])
 
 const ruuviDevices = new Map<string, Peripheral>()
 
@@ -13,15 +16,18 @@ type ScannerParams = { onEvent: (event: ScannerEvent) => void }
 type Scanner = (params: ScannerParams) => Promise<void>
 
 export const scanner: Scanner = async (params): Promise<void> => {
+  logger.debug(`Initializing scanner...`)
+
   const handleDiscover = (peripheral: Peripheral): void => {
     if (isRuuviDevice(peripheral)) {
       if (!ruuviDevices.has(peripheral.id) && peripheral.connectable) {
+        logger.info(`Found a new Ruuvi device: ${peripheral.advertisement.localName}`, { peripheral })
         ruuviDevices.set(peripheral.id, peripheral)
       }
 
       const { data, success, error } = RuuviDataSchema.safeParse(readManufacturerData(peripheral))
       if (error) {
-        console.warn('Parse error', error)
+        logger.warn('Parse error', error)
       }
       if (success) {
         const metadata = { timestamp: new Date(), eventType: 'RuuviTag' }
@@ -31,11 +37,12 @@ export const scanner: Scanner = async (params): Promise<void> => {
   }
 
   noble.on('stateChange', async (state) => {
+    logger.debug(`BLE adapter state change: ${state}`, { state })
     if (state === 'poweredOn') {
       try {
         await noble.startScanningAsync(undefined, true)
-      } catch (e) {
-        console.error('Bluetooth LE scan start failed', e)
+      } catch (error) {
+        logger.error('BLE scan start failed', { error })
         await noble.stopScanningAsync()
       }
     } else if (state === 'poweredOff') {
@@ -47,8 +54,8 @@ export const scanner: Scanner = async (params): Promise<void> => {
 
   try {
     await noble.waitForPoweredOnAsync()
-  } catch (e) {
-    console.error('Bluetooth LE discovery failed', e)
+  } catch (error) {
+    logger.error('BLE discovery failed', { error })
     await noble.stopScanningAsync()
   }
 }

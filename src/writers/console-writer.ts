@@ -20,5 +20,6 @@ export const handleEvent = (event: ScannerEvent) => {
     fixedLength(`${event.data?.pressure} Pa`, 10, true),
     fixedLength(`${'luminosity' in event.data ? event.data.luminosity : 'n/a'} lux`, 13, true),
   ] as const
+  // oxlint-disable-next-line no-console
   console.log('|', columns.join(' | '), '|')
 }

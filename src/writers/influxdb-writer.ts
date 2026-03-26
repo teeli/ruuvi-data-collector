@@ -3,6 +3,7 @@ import { Point } from '@influxdata/influxdb-client'
 import type { ScannerEvent } from '@scanner/scanner'
 import { isNil } from '@util/is-nil.ts'
 import { getConfig } from '@config/config'
+import { getLogger } from '@logtape/logtape'
 
 const tagFields = ['dataFormat', 'address']
 const ignoreFields = ['calibration']
@@ -12,7 +13,11 @@ type HandleEvent = (event: ScannerEvent) => Promise<void>
 type InfluxDbWriterConfig = { client: InfluxDB }
 type InfluxDbWriter = (config: InfluxDbWriterConfig) => { handleEvent: HandleEvent }
 
+const logger = getLogger(['ruuvi', 'writer'])
+
 export const createWriter: InfluxDbWriter = ({ client }) => {
+  logger.debug(`Initializing InfluxDB writer...`)
+
   const config = getConfig()
   const influxDb = client.getWriteApi(config.influxdb.org, config.influxdb.bucket, 'ns')
 
@@ -42,7 +47,7 @@ export const createWriter: InfluxDbWriter = ({ client }) => {
     }
 
     influxDb.writePoint(point)
-    console.log(` ${point.toLineProtocol(influxDb)}`)
+    logger.debug(`Wrote Point to InfluxDB: ${point.toLineProtocol(influxDb)}`)
     await influxDb.flush()
   }
 

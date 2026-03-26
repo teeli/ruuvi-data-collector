@@ -12,4 +12,17 @@ export default defineConfig({
    * InfluxDB credentials
    */
   influxdb: { bucket: 'ruuvi', org: 'my-org', connection: { url: 'http://my-host', token: 'ACCESS_TOKEN' } },
+  /**
+   * Log settings (Optional)
+   */
+  log: {
+    /**
+     * Set log level. Default is "info" if not defined.
+     */
+    level: 'info',
+    /**
+     * Set log file location. Default is "ruuvi-data-collector.log"
+     */
+    file: 'ruuvi-data-collector.log',
+  },
 })

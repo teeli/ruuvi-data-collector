@@ -1,5 +1,5 @@
 [install]
-exact = false
+exact = true
 saveTextLockfile = true
 # Only install package versions published at least 3 days ago
 minimumReleaseAge = 259200

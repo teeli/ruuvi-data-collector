@@ -33,6 +33,11 @@ connection, bucket/org, device aliases, log settings), generated via
 `bun run config:generate` and validated by the zod schema in
 `src/config/config.ts`. Do NOT regenerate file if `config.ts` already exists.
 
+## Dependencies
+
+Always use strict/exact versions in `package.json` (no `^` or `~` ranges) for
+both `dependencies` and `devDependencies`.
+
 ## Code style
 
 - Oxlint (`oxlint.config.ts`), not ESLint. Notably:
@@ -53,6 +58,25 @@ connection, bucket/org, device aliases, log settings), generated via
   - `@writers/*` -> `src/writers`
   - `@clients/*` -> `src/clients`
   - `@util/*` → `src/util`.
+- Use block comments `/* */` for multi-line comments
+
+## Logging
+
+- `src/config/logger/logger.ts` wraps both sinks with `@logtape/redaction`'s
+  `redactByField`, which automatically strips any log field (including nested
+  ones, and values substituted via `{placeholder}` message syntax) whose **key
+  name** matches `SENSITIVE_FIELD_PATTERNS` in that file
+  (password/secret/token/key/credential/auth/signature/sensitive/private/ssn/email/phone
+  — a copy of `@logtape/redaction`'s `DEFAULT_REDACT_FIELDS` minus `/address/i`,
+  kept so BLE device addresses stay visible in logs).
+- This is automatic — no per-call-site wrapping needed. Name new
+  secret/credential config or context fields so they match one of these patterns
+  (or extend the list) to get them covered automatically, rather than relying on
+  manual redaction at each `logger.*()` call.
+- Only values referenced via a `{placeholder}` in the message template (or
+  passed to a JSON/logfmt-style sink) are ever rendered — plain properties
+  passed alongside a placeholder-less message string are not shown by the
+  console/file text formatters used here.
 
 ## Testing
 

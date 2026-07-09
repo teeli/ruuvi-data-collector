@@ -7,6 +7,7 @@ const config: Config = {
   singleQuote: true,
   tabWidth: 2,
   trailingComma: 'es5',
+  overrides: [{ files: '*.md', options: { proseWrap: 'always', printWidth: 80 } }],
 }
 
 /* oxlint-disable no-default-export */

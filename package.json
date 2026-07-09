@@ -14,8 +14,8 @@
     "format": "prettier --write .",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "lint:md": "markdownlint --dot .",
-    "lint:md:fix": "markdownlint --fix --dot .",
+    "lint:md": "markdownlint",
+    "lint:md:fix": "markdownlint --fix",
     "test": "vitest",
     "prepare": "husky"
   },
@@ -43,6 +43,7 @@
     "typescript": "5.9.3"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,mjs,cjs}": "bun run lint"
+    "*.{js,jsx,ts,tsx,mjs,cjs}": "bun run lint",
+    "*.md": ["prettier --write", "markdownlint --fix"]
   }
 }

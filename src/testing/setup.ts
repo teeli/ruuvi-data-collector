@@ -1,6 +1,8 @@
-import { defineConfig } from '@config/config'
+import { defineConfig, setConfig } from '@config/config'
 
-defineConfig({
-  aliases: { 'mock-address': 'mock-alias' },
-  influxdb: { bucket: 'dummy', org: 'dummy', connection: { url: 'http://dummy', token: 'dummy' } },
-})
+setConfig(
+  defineConfig({
+    aliases: { 'mock-address': 'mock-alias' },
+    influxdb: { bucket: 'dummy', org: 'dummy', connection: { url: 'http://dummy', token: 'dummy' } },
+  })
+)

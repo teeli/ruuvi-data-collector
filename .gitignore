@@ -7,3 +7,6 @@ TODO.md
 /logs
 
 .env
+
+.claude/settings.local.json
+CLAUDE.local.md

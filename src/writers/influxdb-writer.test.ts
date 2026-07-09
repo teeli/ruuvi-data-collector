@@ -7,9 +7,7 @@ const writePointMock = vi.fn()
 const flushMock = vi.fn()
 const influxdb = { getWriteApi: vi.fn(() => ({ writePoint: writePointMock, flush: flushMock })) } as unknown as InfluxDB
 
-// TODO: `createWriter()` fails with an error. Fix and enable test
-/* oxlint-disable no-disabled-tests */
-describe.skip('influxdb-writer', () => {
+describe('influxdb-writer', () => {
   let writer: ReturnType<typeof createWriter>
 
   beforeAll(() => {

@@ -1,5 +1,5 @@
 {
   "default": true,
   "MD013": { "tables": false, "code_block_line_length": 120, "stern": true },
-  "MD024": { "siblings_only": true }
+  "MD024": { "siblings_only": true },
 }

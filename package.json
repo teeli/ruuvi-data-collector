@@ -14,8 +14,8 @@
     "format": "prettier --write .",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "lint:md": "markdownlint",
-    "lint:md:fix": "markdownlint --fix",
+    "lint:md": "markdownlint .",
+    "lint:md:fix": "markdownlint --fix .",
     "test": "vitest",
     "prepare": "husky"
   },
@@ -44,6 +44,9 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": "bun run lint",
-    "*.md": ["prettier --write", "markdownlint --fix"]
+    "*.md": [
+      "prettier --write",
+      "markdownlint --fix"
+    ]
   }
 }

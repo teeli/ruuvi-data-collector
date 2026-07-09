@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.ts) bunx --bun prettier --write \"$f\" 2>/dev/null || true; bunx --bun oxlint --fix \"$f\" 2>/dev/null || true;; esac",
+            "statusMessage": "Formatting and linting TypeScript..."
+          },
+          {
+            "type": "command",
+            "command": "file=$(jq -r '.tool_input.file_path // empty'); case \"$file\" in *.md) bunx --bun prettier --write \"$file\" 2>/dev/null; bunx --bun markdownlint --fix \"$file\" 2>/dev/null; out=$(bunx --bun markdownlint \"$file\" 2>&1); if [ -n \"$out\" ]; then jq -n --arg r \"$out\" '{decision:\"block\", reason: $r}'; fi ;; esac",
+            "statusMessage": "Formatting and linting markdown..."
+          }
+        ]
+      }
+    ]
+  }
+}

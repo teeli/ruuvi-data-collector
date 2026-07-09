@@ -99,4 +99,14 @@ describe('scanner', () => {
 
     expect(onEvent).not.toHaveBeenCalled()
   })
+
+  test<CustomContext>('should not throw and should not call onEvent when truncated ruuvi data is received', async ({
+    expect,
+    discover,
+  }) => {
+    const data = Buffer.from('990405', 'hex')
+
+    expect(() => discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })).not.toThrow()
+    expect(onEvent).not.toHaveBeenCalled()
+  })
 })

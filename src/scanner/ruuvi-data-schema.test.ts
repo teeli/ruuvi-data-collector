@@ -258,5 +258,44 @@ describe('Ruuvi data schema', () => {
       expect(result.data).not.toBeDefined()
       expect(result.success).toEqual(false)
     })
+
+    test('should not throw and should fail validation on an empty buffer', ({ expect }) => {
+      expect(() => RuuviDataSchema.safeParse(Buffer.alloc(0))).not.toThrow()
+
+      const result = RuuviDataSchema.safeParse(Buffer.alloc(0))
+      expect(result.error).toBeDefined()
+      expect(result.data).not.toBeDefined()
+      expect(result.success).toEqual(false)
+    })
+
+    test('should not throw and should fail validation on a truncated data format 5 buffer', ({ expect }) => {
+      const data = Buffer.from('05', 'hex')
+      expect(() => RuuviDataSchema.safeParse(data)).not.toThrow()
+
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.error).toBeDefined()
+      expect(result.data).not.toBeDefined()
+      expect(result.success).toEqual(false)
+    })
+
+    test('should not throw and should fail validation on a truncated data format 6 buffer', ({ expect }) => {
+      const data = Buffer.from('06', 'hex')
+      expect(() => RuuviDataSchema.safeParse(data)).not.toThrow()
+
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.error).toBeDefined()
+      expect(result.data).not.toBeDefined()
+      expect(result.success).toEqual(false)
+    })
+
+    test('should not throw and should fail validation on a truncated data format E1 buffer', ({ expect }) => {
+      const data = Buffer.from('E1', 'hex')
+      expect(() => RuuviDataSchema.safeParse(data)).not.toThrow()
+
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.error).toBeDefined()
+      expect(result.data).not.toBeDefined()
+      expect(result.success).toEqual(false)
+    })
   })
 })

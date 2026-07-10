@@ -221,26 +221,34 @@ const parseRuuviAirExtendedFields = (data: Buffer): Omit<z.input<typeof ruuviAir
 export const RuuviDataSchema = z
   .instanceof(Buffer)
   .transform((data, ctx) => {
-    const dataFormat = data.readUIntBE(0, 1).toString(16).toUpperCase()
+    try {
+      const dataFormat = data.readUIntBE(0, 1).toString(16).toUpperCase()
 
-    switch (dataFormat) {
-      case DATA_FORMAT_5: {
-        return { dataFormat, ...parseRuuviTagFields(data) }
+      switch (dataFormat) {
+        case DATA_FORMAT_5: {
+          return { dataFormat, ...parseRuuviTagFields(data) }
+        }
+        case DATA_FORMAT_6: {
+          return { dataFormat, ...parseRuuviAirFields(data) }
+        }
+        case DATA_FORMAT_E1: {
+          return { dataFormat, ...parseRuuviAirExtendedFields(data) }
+        }
+        default:
+          ctx.issues.push({
+            code: 'custom',
+            message: 'Invalid input data format',
+            input: data,
+            received: dataFormat,
+            expected: DATA_FORMAT_E1,
+          })
       }
-      case DATA_FORMAT_6: {
-        return { dataFormat, ...parseRuuviAirFields(data) }
-      }
-      case DATA_FORMAT_E1: {
-        return { dataFormat, ...parseRuuviAirExtendedFields(data) }
-      }
-      default:
-        ctx.issues.push({
-          code: 'custom',
-          message: 'Invalid input data format',
-          input: data,
-          received: dataFormat,
-          expected: DATA_FORMAT_E1,
-        })
+    } catch (error) {
+      ctx.issues.push({
+        code: 'custom',
+        message: error instanceof Error ? error.message : 'Failed to parse manufacturer data',
+        input: data,
+      })
     }
 
     return z.NEVER

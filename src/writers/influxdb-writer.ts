@@ -24,6 +24,11 @@ export const createWriter: InfluxDbWriter = ({ client }) => {
   const handleEvent: HandleEvent = async (event) => {
     const { address, sequence } = event.data
 
+    if (isNil(address)) {
+      logger.warn('Skipping event with no address', { event })
+      return
+    }
+
     if (lastSequence[address] && lastSequence[address] === sequence) {
       // data has already been received, don't write it again
       return

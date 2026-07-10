@@ -25,7 +25,7 @@ let _config: Config
 export const defineConfig = (config: ConfigInput): Config => ConfigSchema.parse(config)
 
 export const setConfig = (config: Config): void => {
-  logger.debug('Set config', { config })
+  logger.debug('Set config {config}', { config })
   _config = config
 }
 export const getConfig = (): Config => _config

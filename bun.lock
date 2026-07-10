@@ -5,19 +5,21 @@
       "name": "ruuvi-collector-v2",
       "dependencies": {
         "@influxdata/influxdb-client": "1.35.0",
-        "@logtape/file": "^2.0.4",
-        "@logtape/logtape": "^2.0.4",
+        "@logtape/file": "2.2.4",
+        "@logtape/logtape": "2.2.4",
+        "@logtape/redaction": "2.2.4",
         "@stoprocent/noble": "2.3.10",
         "dotenv": "17.3.1",
         "zod": "4.3.6",
       },
       "devDependencies": {
         "@types/bun": "1.3.10",
+        "@types/node": "26.1.1",
         "globals": "17.4.0",
         "husky": "9.1.7",
         "jiti": "2.6.1",
         "lint-staged": "16.3.1",
-        "markdownlint-cli": "^0.49.0",
+        "markdownlint-cli": "0.49.0",
         "oxlint": "1.50.0",
         "prettier": "3.8.1",
         "vite-tsconfig-paths": "6.1.1",
@@ -85,9 +87,11 @@
 
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
-    "@logtape/file": ["@logtape/file@2.0.4", "", { "peerDependencies": { "@logtape/logtape": "^2.0.4" } }, "sha512-T4ajSQR19kae/MLic4dLXehsB5nfMSUdNAIgQcdgToog9E8PGaYT0IINw+v4clD25AYogeCmn30V7/s2ieV3GA=="],
+    "@logtape/file": ["@logtape/file@2.2.4", "", { "peerDependencies": { "@logtape/logtape": "^2.2.4" } }, "sha512-f+1g4VvB+HegOYwt8GAhYFk1OO9nbi5l0hn7hkKxjnyedE9CBEoKgN36nIYIt58asRms2GDXLtxeK0OStYjnsQ=="],
 
-    "@logtape/logtape": ["@logtape/logtape@2.0.4", "", {}, "sha512-Z4COeAMdedcBFuFkXaPFvDPOVuHoEom1hwNnPCIkSyojyikuNguplwPoSG+kZthWrS7GiOJo1USQyjWwIFfTKA=="],
+    "@logtape/logtape": ["@logtape/logtape@2.2.4", "", {}, "sha512-2rALzv9m4ibE5FyB8/FMm5MPMMlK7ujgy3ufricVKIxj6e7SZbw4w6J16/fRAsXgdDlOXPUA0aa6XoEQvdlKxw=="],
+
+    "@logtape/redaction": ["@logtape/redaction@2.2.4", "", { "peerDependencies": { "@logtape/logtape": "^2.2.4" } }, "sha512-wff/jw/sIUxW/lp86xQ7neNtft1RhC7ND3oSN/UiA5fzteMKXYdC5rbxG8RtJ7oOZWARDy1WiSeXivSwWYqH/g=="],
 
     "@oxlint/binding-android-arm-eabi": ["@oxlint/binding-android-arm-eabi@1.50.0", "", { "os": "android", "cpu": "arm" }, "sha512-G7MRGk/6NCe+L8ntonRdZP7IkBfEpiZ/he3buLK6JkLgMHgJShXZ+BeOwADmspXez7U7F7L1Anf4xLSkLHiGTg=="],
 
@@ -225,7 +229,7 @@
 
     "@types/ms": ["@types/ms@2.1.0", "", {}, "sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA=="],
 
-    "@types/node": ["@types/node@10.17.60", "", {}, "sha512-F0KIgDJfy2nA3zMLmWGKxcH2ZVEtCZXHHdOQs2gSaQ27+lNeEfGxzkIw90aXswATX7AZ33tahPbzy6KAfUreVw=="],
+    "@types/node": ["@types/node@26.1.1", "", { "dependencies": { "undici-types": "~8.3.0" } }, "sha512-nxAkRSVkN1Y0JC1W8ky/fTfkGsMmcrRsbx+3XoZE+rMOX71kLYTV7fLXpqud1GpbpP5TuffXFqfX7fH2GgZREw=="],
 
     "@types/unist": ["@types/unist@2.0.11", "", {}, "sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA=="],
 
@@ -593,6 +597,8 @@
 
     "uc.micro": ["uc.micro@2.1.0", "", {}, "sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A=="],
 
+    "undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
+
     "universalify": ["universalify@2.0.1", "", {}, "sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw=="],
 
     "usb": ["usb@2.17.0", "", { "dependencies": { "@types/w3c-web-usb": "^1.0.6", "node-addon-api": "^8.0.0", "node-gyp-build": "^4.5.0" } }, "sha512-UuFgrlglgDn5ll6d5l7kl3nDb2Yx43qLUGcDq+7UNLZLtbNug0HZBb2Xodhgx2JZB1LqvU+dOGqLEeYUeZqsHg=="],
@@ -622,6 +628,8 @@
     "@serialport/bindings-cpp/node-gyp-build": ["node-gyp-build@4.6.0", "", { "bin": { "node-gyp-build": "bin.js", "node-gyp-build-test": "build-test.js", "node-gyp-build-optional": "optional.js" } }, "sha512-NTZVKn9IylLwUzaKjkas1e4u2DLNcV4rdYagA4PWdPwW87Bi7z+BznyKSRwS/761tV/lzCGXplWsiaMjLqP2zQ=="],
 
     "@serialport/stream/debug": ["debug@4.3.4", "", { "dependencies": { "ms": "2.1.2" } }, "sha512-PRWFHuSU3eDtQJPvnNY7Jcket1j0t5OuOsFzPPzsekD52Zl8qUfFIPEiswXqIvHWGVHOgX+7G/vCNNhehwxfkQ=="],
+
+    "bun-types/@types/node": ["@types/node@10.17.60", "", {}, "sha512-F0KIgDJfy2nA3zMLmWGKxcH2ZVEtCZXHHdOQs2gSaQ27+lNeEfGxzkIw90aXswATX7AZ33tahPbzy6KAfUreVw=="],
 
     "chalk/ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=="],
 

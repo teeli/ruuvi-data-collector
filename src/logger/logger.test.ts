@@ -1,12 +1,12 @@
-import { defineConfig } from '@config/config'
-import { getLogger, reset } from '@logtape/logtape'
+import { defineConfig, setConfig } from '@config/config'
+import { reset } from '@logtape/logtape'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, test } from 'vitest'
-import { configureLogger } from './logger'
+import { getLogger } from './logger'
 
-describe('configureLogger', () => {
+describe('logger', () => {
   let logDir: string
 
   afterEach(async () => {
@@ -18,13 +18,15 @@ describe('configureLogger', () => {
     logDir = mkdtempSync(join(tmpdir(), 'ruuvi-logger-test-'))
     const logFile = join(logDir, 'test.log')
 
-    const config = defineConfig({
-      influxdb: { org: 'dummy', bucket: 'dummy', connection: { url: 'http://dummy', token: 'dummy' } },
-      log: { level: 'debug', file: logFile },
-    })
-    await configureLogger(config)
+    setConfig(
+      defineConfig({
+        influxdb: { org: 'dummy', bucket: 'dummy', connection: { url: 'http://dummy', token: 'dummy' } },
+        log: { level: 'debug', file: logFile },
+      })
+    )
+    const logger = await getLogger(['ruuvi', 'test'])
 
-    getLogger(['ruuvi', 'test']).info('test message {token} {note} {address}', {
+    logger.info('test message {token} {note} {address}', {
       token: 'super-secret-value',
       note: 'ok',
       address: 'AA:BB:CC:DD:EE:FF',

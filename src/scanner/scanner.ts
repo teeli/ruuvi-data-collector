@@ -1,12 +1,10 @@
-import { RuuviDataSchema } from '@scanner/ruuvi-data-schema'
+import { getLogger } from '@logger/logger'
 import type { RuuviData } from '@scanner/ruuvi-data-schema'
+import { RuuviDataSchema } from '@scanner/ruuvi-data-schema'
 import type { Peripheral } from '@stoprocent/noble'
 import noble from '@stoprocent/noble'
-import { getLogger } from '@logtape/logtape'
 
 const RUUVI_COMPANY_CODE = 0x0499
-
-const logger = getLogger(['ruuvi', 'scanner'])
 
 const ruuviDevices = new Map<string, Peripheral>()
 
@@ -16,6 +14,7 @@ type ScannerParams = { onEvent: (event: ScannerEvent) => Promise<void> }
 type Scanner = (params: ScannerParams) => Promise<void>
 
 export const scanner: Scanner = async (params): Promise<void> => {
+  const logger = await getLogger(['ruuvi', 'scanner'])
   logger.debug(`Initializing scanner...`)
 
   const handleDiscover = async (peripheral: Peripheral): Promise<void> => {
@@ -34,7 +33,7 @@ export const scanner: Scanner = async (params): Promise<void> => {
         try {
           await params.onEvent({ data, metadata })
         } catch (error) {
-          logger.error('onEvent handler failed', { error })
+          logger.error('onEvent handler failed {error}', { error })
         }
       }
     }

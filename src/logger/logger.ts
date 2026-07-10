@@ -1,6 +1,13 @@
-import type { Config } from '@config/config.ts'
+import { getConfig } from '@config/config.ts'
 import { getStreamFileSink } from '@logtape/file'
-import { configure, getConsoleSink, getAnsiColorFormatter, getTextFormatter } from '@logtape/logtape'
+import type { Logger } from '@logtape/logtape'
+import {
+  configure,
+  getAnsiColorFormatter,
+  getConsoleSink,
+  getLogger as getLogtapeLogger,
+  getTextFormatter,
+} from '@logtape/logtape'
 import { redactByField } from '@logtape/redaction'
 
 /**
@@ -23,7 +30,11 @@ const SENSITIVE_FIELD_PATTERNS = [
   /phone/i,
 ]
 
-export const configureLogger = async (config: Config): Promise<void> => {
+let configPromise: Promise<void> | undefined
+
+const configureLogger = async (): Promise<void> => {
+  const config = await getConfig()
+
   const ansiColorFormatter = getAnsiColorFormatter({
     timestamp: 'rfc3339',
     timestampColor: 'green',
@@ -47,4 +58,14 @@ export const configureLogger = async (config: Config): Promise<void> => {
       { category: 'ruuvi', lowestLevel: config.log.level, sinks: ['console', 'file'] },
     ],
   })
+}
+
+export const getLogger = async (category: string | readonly string[]): Promise<Logger> => {
+  if (!configPromise) {
+    configPromise = configureLogger()
+  }
+
+  await configPromise
+
+  return getLogtapeLogger(category)
 }

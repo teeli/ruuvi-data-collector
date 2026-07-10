@@ -1,8 +1,6 @@
 import type { ScannerEvent } from '@scanner/scanner'
 import { getConfig } from '@config/config'
 
-const config = getConfig()
-
 const fixedLength = (str: string, len: number = 15, alignRight: boolean = false) => {
   const s = str.substring(0, len)
   if (alignRight) {
@@ -11,7 +9,8 @@ const fixedLength = (str: string, len: number = 15, alignRight: boolean = false)
   return s.padEnd(len, ' ')
 }
 
-export const handleEvent = (event: ScannerEvent) => {
+export const handleEvent = async (event: ScannerEvent) => {
+  const config = await getConfig()
   const address = event.data.address ?? 'unknown'
   const columns = [
     fixedLength(config?.aliases?.[address] ?? address, 20),

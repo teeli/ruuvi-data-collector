@@ -8,10 +8,10 @@ const flushMock = vi.fn()
 const influxdb = { getWriteApi: vi.fn(() => ({ writePoint: writePointMock, flush: flushMock })) } as unknown as InfluxDB
 
 describe('influxdb-writer', () => {
-  let writer: ReturnType<typeof createWriter>
+  let writer: Awaited<ReturnType<typeof createWriter>>
 
-  beforeAll(() => {
-    writer = createWriter({ client: influxdb })
+  beforeAll(async () => {
+    writer = await createWriter({ client: influxdb })
   })
 
   afterEach(() => {

@@ -54,6 +54,7 @@ both `dependencies` and `devDependencies`.
   - markdown files (`*.md`) override to 80 print width + `proseWrap: always`
 - Path aliases (see `tsconfig.json`):
   - `@config/*` -> `src/config`
+  - `@logger/*` -> `src/logger`
   - `@scanner/*` -> `src/scanner`
   - `@writers/*` -> `src/writers`
   - `@clients/*` -> `src/clients`
@@ -62,7 +63,14 @@ both `dependencies` and `devDependencies`.
 
 ## Logging
 
-- `src/config/logger/logger.ts` wraps both sinks with `@logtape/redaction`'s
+- Always import `getLogger` from `@logger/logger`, never directly from
+  `@logtape/logtape`. It's `async` — `await getLogger([...])` — because it
+  auto-configures logging (sinks, redaction) on first call (memoized, so this
+  only actually runs once no matter how many modules await it) before returning
+  the logtape `Logger`. No module needs to call `configureLogger()` explicitly;
+  awaiting `getLogger()` guarantees sinks/redaction are already wired up, so no
+  log line is ever emitted unconfigured/unredacted.
+- `src/logger/logger.ts` wraps both sinks with `@logtape/redaction`'s
   `redactByField`, which automatically strips any log field (including nested
   ones, and values substituted via `{placeholder}` message syntax) whose **key
   name** matches `SENSITIVE_FIELD_PATTERNS` in that file (password / secret /
@@ -90,6 +98,8 @@ both `dependencies` and `devDependencies`.
   - Rely on mocks to test Bluetooth.
   - Treat scanner/hardware-facing behavior as unverified by `bun run test` alone
     — say so rather than claiming it's confirmed working.
+  - Nested test blocks (`describe()`, `it()`, etc) should always read like a
+    sentence together
 
 ## Git / PR conventions
 

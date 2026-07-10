@@ -24,7 +24,8 @@ New and improved version of
 
 ## Run Ruuvi Data Collector
 
-- `bun run start` — run once
+- `bun run start` — start scanning and writing measurements (runs indefinitely
+  until stopped)
 
 ### Systemd service
 

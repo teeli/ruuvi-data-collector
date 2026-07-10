@@ -1,12 +1,11 @@
-import '@config/init'
+import { createInfluxDbClient } from '@clients/influxdb-client'
+import { getLogger } from '@logger/logger'
 import { scanner } from '@scanner/scanner'
 import { createWriter } from '@writers/influxdb-writer'
-import { influxdb } from '@clients/influxdb-client'
-import { getLogger } from '@logtape/logtape'
 
-const logger = getLogger(['ruuvi'])
+const logger = await getLogger(['ruuvi'])
 logger.info('Starting...')
 
-const writer = createWriter({ client: influxdb })
+const writer = await createWriter({ client: await createInfluxDbClient() })
 
 await scanner({ onEvent: writer.handleEvent })

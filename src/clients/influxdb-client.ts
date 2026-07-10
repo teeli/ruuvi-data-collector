@@ -1,6 +1,7 @@
 import { InfluxDB } from '@influxdata/influxdb-client'
 import { getConfig } from '@config/config'
 
-const config = getConfig()
-
-export const influxdb = new InfluxDB(config.influxdb.connection)
+export const createInfluxDbClient = async (): Promise<InfluxDB> => {
+  const config = await getConfig()
+  return new InfluxDB(config.influxdb.connection)
+}

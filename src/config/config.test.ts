@@ -1,45 +1,27 @@
-import { reset } from '@logtape/logtape'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { afterEach, describe, test } from 'vitest'
-import { defineConfig, setConfig } from './config'
-import { configureLogger } from './logger/logger'
+import { describe, test } from 'vitest'
+import { defineConfig, getConfig, setConfig } from './config'
 
-describe('setConfig', () => {
-  let logDir: string
+describe('getConfig', () => {
+  test('returns the config set via setConfig', async ({ expect }) => {
+    const config = defineConfig({
+      influxdb: { org: 'my-org', bucket: 'my-bucket', connection: { url: 'http://influxdb:8086', token: 'my-token' } },
+    })
+    setConfig(config)
 
-  afterEach(async () => {
-    await reset()
-    rmSync(logDir, { recursive: true, force: true })
+    await expect(getConfig()).resolves.toBe(config)
   })
 
-  test('does not leak the InfluxDB token to debug logs', async ({ expect }) => {
-    logDir = mkdtempSync(join(tmpdir(), 'ruuvi-config-test-'))
-    const logFile = join(logDir, 'test.log')
+  test('memoizes the config across repeated calls', async ({ expect }) => {
+    const config = defineConfig({
+      influxdb: {
+        org: 'memo-org',
+        bucket: 'memo-bucket',
+        connection: { url: 'http://influxdb:8086', token: 'memo-token' },
+      },
+    })
+    setConfig(config)
 
-    await configureLogger(
-      defineConfig({
-        influxdb: { org: 'dummy', bucket: 'dummy', connection: { url: 'http://dummy', token: 'dummy' } },
-        log: { level: 'debug', file: logFile },
-      })
-    )
-
-    setConfig(
-      defineConfig({
-        influxdb: {
-          org: 'my-org',
-          bucket: 'my-bucket',
-          connection: { url: 'http://influxdb:8086', token: 'super-secret-token' },
-        },
-        log: { level: 'debug', file: logFile },
-      })
-    )
-    await reset()
-
-    const contents = readFileSync(logFile, 'utf8')
-    expect(contents).not.toContain('super-secret-token')
-    expect(contents).toContain('my-org')
-    expect(contents).toContain('my-bucket')
+    const [first, second] = await Promise.all([getConfig(), getConfig()])
+    expect(first).toBe(second)
   })
 })

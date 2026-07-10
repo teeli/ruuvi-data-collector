@@ -1,9 +1,9 @@
+import { getConfig } from '@config/config'
 import type { InfluxDB } from '@influxdata/influxdb-client'
 import { Point } from '@influxdata/influxdb-client'
+import { getLogger } from '@logger/logger'
 import type { ScannerEvent } from '@scanner/scanner'
 import { isNil } from '@util/is-nil.ts'
-import { getConfig } from '@config/config'
-import { getLogger } from '@logtape/logtape'
 
 const tagFields = ['dataFormat', 'address']
 const ignoreFields = ['calibration']
@@ -11,14 +11,13 @@ const lastSequence: Record<string, number | undefined> = {}
 
 type HandleEvent = (event: ScannerEvent) => Promise<void>
 type InfluxDbWriterConfig = { client: InfluxDB }
-type InfluxDbWriter = (config: InfluxDbWriterConfig) => { handleEvent: HandleEvent }
+type InfluxDbWriter = (config: InfluxDbWriterConfig) => Promise<{ handleEvent: HandleEvent }>
 
-const logger = getLogger(['ruuvi', 'writer'])
-
-export const createWriter: InfluxDbWriter = ({ client }) => {
+export const createWriter: InfluxDbWriter = async ({ client }) => {
+  const logger = await getLogger(['ruuvi', 'writer'])
   logger.debug(`Initializing InfluxDB writer...`)
 
-  const config = getConfig()
+  const config = await getConfig()
   const influxDb = client.getWriteApi(config.influxdb.org, config.influxdb.bucket, 'ns')
 
   const handleEvent: HandleEvent = async (event) => {

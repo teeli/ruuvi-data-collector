@@ -1,7 +1,5 @@
 import { z } from 'zod'
-import { getLogger, getLogLevels } from '@logtape/logtape'
-
-const logger = getLogger(['ruuvi', 'config'])
+import { getLogLevels } from '@logtape/logtape'
 
 const ConfigSchema = z.object({
   influxdb: z.object({
@@ -20,12 +18,22 @@ const ConfigSchema = z.object({
 export type ConfigInput = z.input<typeof ConfigSchema>
 export type Config = z.output<typeof ConfigSchema>
 
-let _config: Config
-
 export const defineConfig = (config: ConfigInput): Config => ConfigSchema.parse(config)
 
-export const setConfig = (config: Config): void => {
-  logger.debug('Set config {config}', { config })
-  _config = config
+let configPromise: Promise<Config> | undefined
+
+const loadConfig = async (): Promise<Config> => {
+  const { default: rawConfig } = await import('../../config')
+  return defineConfig(rawConfig)
 }
-export const getConfig = (): Config => _config
+
+export const setConfig = (config: Config): void => {
+  configPromise = Promise.resolve(config)
+}
+
+export const getConfig = (): Promise<Config> => {
+  if (!configPromise) {
+    configPromise = loadConfig()
+  }
+  return configPromise
+}

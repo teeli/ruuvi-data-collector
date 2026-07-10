@@ -86,6 +86,17 @@ describe('scanner', () => {
     })
   })
 
+  test<CustomContext>('should not crash when onEvent rejects', async ({ expect, discover }) => {
+    const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
+    onEvent.mockRejectedValueOnce(new Error('write failed'))
+
+    await expect(
+      discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
+    ).resolves.toBeUndefined()
+
+    expect(onEvent).toHaveBeenCalledTimes(1)
+  })
+
   test<CustomContext>('should not call onEvent when invalid data is received', async ({ expect, discover }) => {
     const data = Buffer.from('9904FF', 'hex')
     discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })

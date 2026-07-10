@@ -20,21 +20,32 @@ const CO2_MAX = 2300
 const CO2_MIN = 420
 const CO2_SCALE = AQI_MAX / (CO2_MAX - CO2_MIN) // ≈ 0.05319
 
-const byte = (byteLength: number, unsigned: boolean = false) => {
-  const length = 2 ** byteLength
-  const max = unsigned ? length : length / 2
-  const min = unsigned ? 0 : 1 - max
+// Not available is signified by the largest presentable number for unsigned values
+// and the smallest presentable number for signed values.
+// https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2
+const byte = (bitLength: number, unsigned: boolean = false) => {
+  const length = 2 ** bitLength
+  const max = unsigned ? length - 1 : length / 2 - 1
+  const min = unsigned ? 0 : -(length / 2)
+  const sentinel = unsigned ? max : min
   return z
     .int()
     .min(min)
     .max(max)
-    .transform((value) => (value === max ? undefined : value))
+    .transform((value) => (value === sentinel ? undefined : value))
 }
 
-const macCodec = z.codec(z.number(), z.string(), {
-  decode: (value) => value.toString(16).toUpperCase().match(/.{2}/g)?.join(':') ?? value.toString(16),
-  encode: (value) => parseInt(value.split(':').join(''), 16),
-})
+// Not available is signified by all bits set.
+const macCodec = (byteLength: number) => {
+  const sentinel = 2 ** (byteLength * 8) - 1
+  return z.codec(z.number().min(0).max(sentinel), z.string().optional(), {
+    decode: (value) =>
+      value === sentinel
+        ? undefined
+        : (value.toString(16).toUpperCase().match(/.{2}/g)?.join(':') ?? value.toString(16)),
+    encode: (value) => (isNil(value) ? sentinel : parseInt(value.split(':').join(''), 16)),
+  })
+}
 
 const txPowerCodec = z.codec(z.number().min(0).max(31), z.number().min(-40).max(22).optional(), {
   decode: (value) => (value === 31 ? undefined : value * 2 - 40),
@@ -102,7 +113,7 @@ const iaqsTransform = <T extends { 'pm2.5': number | undefined; co2: number | un
 }
 
 const baseSchema = z.object({
-  address: macCodec,
+  address: macCodec(6),
   temperature: byte(16).transform(temperatureTransform).transform(toPrecision(3)),
   humidity: byte(16, true).transform(humidityTransform).transform(toPrecision(4)),
   pressure: byte(16, true).transform(pressureTransform),
@@ -127,21 +138,28 @@ const ruuviTagSchema = z
 
 const ruuviAirBaseSchema = z.object({
   ...baseSchema.shape,
-  dataFormat: z.literal(DATA_FORMAT_6),
   'pm2.5': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
   calibration: z.boolean(),
   co2: byte(16, true),
-  voc: z.number().min(0).max(500),
-  nox: z.number().min(0).max(500),
-  luminosity: byte(8, true).transform(luminosityTransform).transform(toPrecision(2)),
-  sequence: byte(16, true),
+  // 9-bit value: dedicated byte + least significant bit from the flags byte
+  voc: byte(9, true),
+  nox: byte(9, true),
 })
 
 /**
  * Ruuvi data format 6 schema
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-6
  */
-const ruuviAirSchema = z.object({ ...ruuviAirBaseSchema.shape }).transform(iaqsTransform)
+const ruuviAirSchema = z
+  .object({
+    ...ruuviAirBaseSchema.shape,
+    dataFormat: z.literal(DATA_FORMAT_6),
+    address: macCodec(3),
+    luminosity: byte(8, true).transform(luminosityTransform).transform(toPrecision(2)),
+    // No reserved "not available" value for this field, unlike E1's sequence
+    sequence: z.int().min(0).max(255),
+  })
+  .transform(iaqsTransform)
 
 /**
  * Ruuvi data format E1 schema
@@ -151,11 +169,12 @@ const ruuviAirExtendedSchema = z
   .object({
     ...ruuviAirBaseSchema.shape,
     dataFormat: z.literal(DATA_FORMAT_E1),
+    address: macCodec(6),
     'pm1.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
     'pm4.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
     'pm10.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
     luminosity: byte(24, true).transform(luminosityExtendedTransform).transform(toPrecision(2)),
-    sequence: z.int().min(0).max(16_777_214),
+    sequence: byte(24, true),
   })
   .transform(iaqsTransform)
 

@@ -64,12 +64,39 @@ describe('Ruuvi data schema', () => {
       )
     })
 
-    test('should fail on invalid values', ({ expect }) => {
+    test('should treat an advertisement with every field set to its sentinel as valid but empty', ({ expect }) => {
       const data = Buffer.from('058000FFFFFFFF800080008000FFFFFFFFFFFFFFFFFFFFFF', 'hex')
       const result = RuuviDataSchema.safeParse(data)
-      expect(result.error).toBeDefined()
-      expect(result.data).not.toBeDefined()
-      expect(result.success).toEqual(false)
+      expect(result.success).toEqual(true)
+      expect(result.data).toEqual({ dataFormat: '5' })
+    })
+
+    test('should treat unsigned sentinel values (all bits set) as not available', ({ expect }) => {
+      const data = Buffer.from('050000FFFFFFFF000000000000FFFFFFFFFFCBB8334C884F', 'hex')
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.data).toEqual(
+        expect.objectContaining({
+          humidity: undefined,
+          pressure: undefined,
+          txPower: undefined,
+          voltage: undefined,
+          movement: undefined,
+          sequence: undefined,
+        })
+      )
+    })
+
+    test('should treat signed sentinel values (smallest representable) as not available', ({ expect }) => {
+      const data = Buffer.from('058000000000008000800080000000000000CBB8334C884F', 'hex')
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.data).toEqual(
+        expect.objectContaining({
+          temperature: undefined,
+          accelerationX: undefined,
+          accelerationY: undefined,
+          accelerationZ: undefined,
+        })
+      )
     })
   })
 
@@ -137,12 +164,44 @@ describe('Ruuvi data schema', () => {
       )
     })
 
-    test('should fail on invalid values', ({ expect }) => {
+    test('should treat an advertisement with every field set to its sentinel as valid but empty', ({ expect }) => {
       const data = Buffer.from('068000FFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFF', 'hex')
       const result = RuuviDataSchema.safeParse(data)
-      expect(result.error).toBeDefined()
-      expect(result.data).not.toBeDefined()
-      expect(result.success).toEqual(false)
+      expect(result.success).toEqual(true)
+      expect(result.data).toEqual(
+        expect.objectContaining({
+          dataFormat: '6',
+          calibration: true,
+          // sequence has no reserved "invalid" value for this format - 255 is a real value
+          // https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-6
+          sequence: 255,
+          address: undefined,
+        })
+      )
+    })
+
+    test('should treat unsigned sentinel values (all bits set) as not available', ({ expect }) => {
+      const data = Buffer.from('060000FFFFFFFFFFFFFFFF0000FF00FF004C884F', 'hex')
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.data).toEqual(
+        expect.objectContaining({
+          humidity: undefined,
+          pressure: undefined,
+          'pm2.5': undefined,
+          co2: undefined,
+          luminosity: undefined,
+          iaqs: undefined,
+          // sequence has no reserved "invalid" value for this format - 255 is a real value
+          // https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-6
+          sequence: 255,
+        })
+      )
+    })
+
+    test('should treat 9-bit voc/nox sentinel values (511) as not available', ({ expect }) => {
+      const data = Buffer.from('060000FFFFFFFFFFFFFFFFFFFFFF0000C04C884F', 'hex')
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.data).toEqual(expect.objectContaining({ voc: undefined, nox: undefined }))
     })
   })
 
@@ -228,15 +287,44 @@ describe('Ruuvi data schema', () => {
       )
     })
 
-    test('should handle invalid values', ({ expect }) => {
+    test('should treat an advertisement with every field set to its sentinel as valid but empty', ({ expect }) => {
       const data = Buffer.from(
         'E18000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FFFFFFFE0000000000FFFFFFFFFFFF',
         'hex'
       )
       const result = RuuviDataSchema.safeParse(data)
-      expect(result.error).toBeDefined()
-      expect(result.data).not.toBeDefined()
-      expect(result.success).toEqual(false)
+      expect(result.success).toEqual(true)
+      expect(result.data).toEqual(expect.objectContaining({ dataFormat: 'E1', calibration: false, address: undefined }))
+    })
+
+    test('should treat unsigned sentinel values (all bits set) as not available', ({ expect }) => {
+      const data = Buffer.from(
+        'E10000FFFFFFFFFFFFFFFFFFFFFFFFFFFF0000FFFFFF000000000000000000000000CBB8334C884F',
+        'hex'
+      )
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.data).toEqual(
+        expect.objectContaining({
+          humidity: undefined,
+          pressure: undefined,
+          'pm1.0': undefined,
+          'pm2.5': undefined,
+          'pm4.0': undefined,
+          'pm10.0': undefined,
+          co2: undefined,
+          luminosity: undefined,
+          iaqs: undefined,
+        })
+      )
+    })
+
+    test('should treat 9-bit voc/nox sentinel values (511) as not available', ({ expect }) => {
+      const data = Buffer.from(
+        'E100000000000000000000000000000000FFFF000000000000000000C00000000000CBB8334C884F',
+        'hex'
+      )
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.data).toEqual(expect.objectContaining({ voc: undefined, nox: undefined }))
     })
   })
 

@@ -87,7 +87,7 @@ describe('scanner', () => {
   })
 
   test<CustomContext>('should not call onEvent when invalid data is received', async ({ expect, discover }) => {
-    const data = Buffer.from('9904058000FFFFFFFF800080008000FFFFFFFFFFFFFFFFFFFFFF', 'hex')
+    const data = Buffer.from('9904FF', 'hex')
     discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
 
     expect(onEvent).not.toHaveBeenCalled()

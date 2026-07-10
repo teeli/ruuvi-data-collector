@@ -20,5 +20,18 @@ export default defineConfig({
     'no-console': 'error',
     'import/extensions': ['error', 'never'],
     'unicorn/filename-case': ['error', { case: 'kebabCase' }],
+    'no-restricted-imports': [
+      'error',
+      {
+        paths: [
+          {
+            name: '@logtape/logtape',
+            importNames: ['getLogger'],
+            message: 'Import getLogger from @logger/logger instead.',
+          },
+        ],
+      },
+    ],
   },
+  overrides: [{ files: ['src/logger/**'], rules: { 'no-restricted-imports': 'off' } }],
 })

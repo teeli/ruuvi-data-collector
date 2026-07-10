@@ -12,13 +12,13 @@ const ruuviDevices = new Map<string, Peripheral>()
 
 type ScannerEventMetadata = { timestamp: Date }
 export type ScannerEvent = { metadata: ScannerEventMetadata; data: RuuviData }
-type ScannerParams = { onEvent: (event: ScannerEvent) => void }
+type ScannerParams = { onEvent: (event: ScannerEvent) => Promise<void> }
 type Scanner = (params: ScannerParams) => Promise<void>
 
 export const scanner: Scanner = async (params): Promise<void> => {
   logger.debug(`Initializing scanner...`)
 
-  const handleDiscover = (peripheral: Peripheral): void => {
+  const handleDiscover = async (peripheral: Peripheral): Promise<void> => {
     if (isRuuviDevice(peripheral)) {
       if (!ruuviDevices.has(peripheral.id) && peripheral.connectable) {
         logger.info(`Found a new Ruuvi device: ${peripheral.advertisement.localName}`, { peripheral })
@@ -31,7 +31,11 @@ export const scanner: Scanner = async (params): Promise<void> => {
       }
       if (success) {
         const metadata = { timestamp: new Date(), eventType: 'RuuviTag' }
-        params.onEvent({ data, metadata })
+        try {
+          await params.onEvent({ data, metadata })
+        } catch (error) {
+          logger.error('onEvent handler failed', { error })
+        }
       }
     }
   }

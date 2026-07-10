@@ -65,10 +65,10 @@ both `dependencies` and `devDependencies`.
 - `src/config/logger/logger.ts` wraps both sinks with `@logtape/redaction`'s
   `redactByField`, which automatically strips any log field (including nested
   ones, and values substituted via `{placeholder}` message syntax) whose **key
-  name** matches `SENSITIVE_FIELD_PATTERNS` in that file
-  (password/secret/token/key/credential/auth/signature/sensitive/private/ssn/email/phone
-  — a copy of `@logtape/redaction`'s `DEFAULT_REDACT_FIELDS` minus `/address/i`,
-  kept so BLE device addresses stay visible in logs).
+  name** matches `SENSITIVE_FIELD_PATTERNS` in that file (password / secret /
+  token / key / credential / auth / signature / sensitive / private / ssn /
+  email / phone) — a copy of `@logtape/redaction`'s `DEFAULT_REDACT_FIELDS`
+  minus `/address/i`, kept so BLE device addresses stay visible in logs).
 - This is automatic — no per-call-site wrapping needed. Name new
   secret/credential config or context fields so they match one of these patterns
   (or extend the list) to get them covered automatically, rather than relying on
@@ -93,8 +93,10 @@ both `dependencies` and `devDependencies`.
 
 ## Git / PR conventions
 
-- Never commit directly to `main` — GitHub blocks it. Every change goes on its
-  own branch (`feat/`, `fix/`, `chore/` prefixes match existing history).
+- Always create a new branch based on `main` before starting a new
+  implementation. Use clear branch names with a prefix such as `feat/`, `fix/`,
+  or `chore/`
+- Never commit directly to `main` — GitHub blocks it.
 - No CI currently runs on push/PR — run `bun run lint` and `bun run test`
   locally before considering a change done.
 - Code is merged to `main` via Github pull requests. Prefer fast forward merges

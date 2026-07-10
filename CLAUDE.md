@@ -70,6 +70,10 @@ both `dependencies` and `devDependencies`.
   the logtape `Logger`. No module needs to call `configureLogger()` explicitly;
   awaiting `getLogger()` guarantees sinks/redaction are already wired up, so no
   log line is ever emitted unconfigured/unredacted.
+- `configure`/`reset` are also blocked from direct import from
+  `@logtape/logtape` outside `src/logger/**` (oxlint `no-restricted-imports`),
+  since anything calling logtape's `reset()` directly would desync it from
+  `getLogger()`'s memoized state.
 - `src/logger/logger.ts` wraps both sinks with `@logtape/redaction`'s
   `redactByField`, which automatically strips any log field (including nested
   ones, and values substituted via `{placeholder}` message syntax) whose **key

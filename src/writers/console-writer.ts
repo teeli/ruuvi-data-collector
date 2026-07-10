@@ -9,17 +9,22 @@ const fixedLength = (str: string, len: number = 15, alignRight: boolean = false)
   return s.padEnd(len, ' ')
 }
 
-export const handleEvent = async (event: ScannerEvent) => {
+export const createConsoleWriter = async (): Promise<{ handleEvent: (event: ScannerEvent) => void }> => {
   const config = await getConfig()
-  const address = event.data.address ?? 'unknown'
-  const columns = [
-    fixedLength(config?.aliases?.[address] ?? address, 20),
-    fixedLength(event.data.dataFormat, 3),
-    fixedLength(`${event.data?.temperature?.toFixed(2)}°C`, 10, true),
-    fixedLength(`${event.data?.humidity?.toFixed(2)}%`, 10, true),
-    fixedLength(`${event.data?.pressure} Pa`, 10, true),
-    fixedLength(`${'luminosity' in event.data ? event.data.luminosity : 'n/a'} lux`, 13, true),
-  ] as const
-  // oxlint-disable-next-line no-console
-  console.log('|', columns.join(' | '), '|')
+
+  const handleEvent = (event: ScannerEvent): void => {
+    const address = event.data.address ?? 'unknown'
+    const columns = [
+      fixedLength(config?.aliases?.[address] ?? address, 20),
+      fixedLength(event.data.dataFormat, 3),
+      fixedLength(`${event.data?.temperature?.toFixed(2)}°C`, 10, true),
+      fixedLength(`${event.data?.humidity?.toFixed(2)}%`, 10, true),
+      fixedLength(`${event.data?.pressure} Pa`, 10, true),
+      fixedLength(`${'luminosity' in event.data ? event.data.luminosity : 'n/a'} lux`, 13, true),
+    ] as const
+    // oxlint-disable-next-line no-console
+    console.log('|', columns.join(' | '), '|')
+  }
+
+  return { handleEvent }
 }

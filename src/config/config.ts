@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { getLogLevels } from '@logtape/logtape'
+import { memoize } from '@util/memoize'
 
 const ConfigSchema = z.object({
   influxdb: z.object({
@@ -20,20 +21,11 @@ export type Config = z.output<typeof ConfigSchema>
 
 export const defineConfig = (config: ConfigInput): Config => ConfigSchema.parse(config)
 
-let configPromise: Promise<Config> | undefined
-
-const loadConfig = async (): Promise<Config> => {
+const loadConfig = memoize(async (): Promise<Config> => {
   const { default: rawConfig } = await import('../../config')
   return defineConfig(rawConfig)
-}
+})
 
-export const setConfig = (config: Config): void => {
-  configPromise = Promise.resolve(config)
-}
+export const setConfig = (config: Config): void => loadConfig.set(Promise.resolve(config))
 
-export const getConfig = (): Promise<Config> => {
-  if (!configPromise) {
-    configPromise = loadConfig()
-  }
-  return configPromise
-}
+export const getConfig = (): Promise<Config> => loadConfig.get()

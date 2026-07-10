@@ -26,8 +26,8 @@ export default defineConfig({
         paths: [
           {
             name: '@logtape/logtape',
-            importNames: ['getLogger'],
-            message: 'Import getLogger from @logger/logger instead.',
+            importNames: ['getLogger', 'configure', 'reset'],
+            message: 'Import getLogger/resetLogger from @logger/logger instead.',
           },
         ],
       },

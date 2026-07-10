@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, test, vi } from 'vitest'
 import type { TestContext } from 'vitest'
 import { scanner } from './scanner'
+import type { ScannerEvent } from './scanner'
 import noble from '@stoprocent/noble'
 
 vi.mock('@stoprocent/noble')
 const nobleMock = vi.mocked(noble)
 
-const onEvent = vi.fn()
+const onEvent = vi.fn<(event: ScannerEvent) => Promise<void>>()
 
 type CustomContext = TestContext & { discover: Function; stateChange: Function }
 

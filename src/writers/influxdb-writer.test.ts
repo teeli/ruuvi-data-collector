@@ -1,11 +1,13 @@
-import type { InfluxDB } from '@influxdata/influxdb-client'
+import type { WriteApi, InfluxDB } from '@influxdata/influxdb-client'
 import type { ScannerEvent } from '@scanner/scanner'
 import { afterEach, beforeAll, describe, test, vi } from 'vitest'
 import { createWriter } from './influxdb-writer'
 
-const writePointMock = vi.fn()
-const flushMock = vi.fn()
-const influxdb = { getWriteApi: vi.fn(() => ({ writePoint: writePointMock, flush: flushMock })) } as unknown as InfluxDB
+const writePointMock = vi.fn<WriteApi['writePoint']>()
+const flushMock = vi.fn<WriteApi['flush']>()
+const influxdb = {
+  getWriteApi: vi.fn<() => Partial<WriteApi>>(() => ({ writePoint: writePointMock, flush: flushMock })),
+} as unknown as InfluxDB
 
 describe('influxdb-writer', () => {
   let writer: Awaited<ReturnType<typeof createWriter>>

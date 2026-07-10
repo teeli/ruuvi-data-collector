@@ -117,4 +117,37 @@ describe('influxdb-writer', () => {
     })
     expect(flushMock).toHaveBeenCalledTimes(1)
   })
+  test('should not write same sequence twice in a row when sequence is 0', async ({ expect }) => {
+    const event = {
+      data: {
+        dataFormat: 'E1',
+        address: 'mock-address-zero-sequence',
+        humidity: undefined,
+        pressure: undefined,
+        temperature: undefined,
+        luminosity: undefined,
+        'pm1.0': undefined,
+        'pm2.5': undefined,
+        'pm4.0': undefined,
+        'pm10.0': undefined,
+        calibration: false,
+        co2: 1,
+        nox: 2,
+        voc: 3,
+        sequence: 0,
+        iaqs: undefined,
+      },
+      metadata: { timestamp: new Date() },
+    } satisfies ScannerEvent
+    await writer.handleEvent(event)
+    await writer.handleEvent(event)
+
+    expect(writePointMock).toHaveBeenCalledTimes(1)
+    expect(writePointMock).toHaveBeenCalledWith({
+      name: 'ruuvi_measurement',
+      tags: { dataFormat: 'E1', address: 'mock-address-zero-sequence' },
+      fields: { co2: '1', nox: '2', voc: '3', sequence: '0' },
+    })
+    expect(flushMock).toHaveBeenCalledTimes(1)
+  })
 })

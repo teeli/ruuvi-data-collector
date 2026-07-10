@@ -29,7 +29,7 @@ export const createWriter: InfluxDbWriter = ({ client }) => {
       return
     }
 
-    if (lastSequence[address] && lastSequence[address] === sequence) {
+    if (!isNil(lastSequence[address]) && lastSequence[address] === sequence) {
       // data has already been received, don't write it again
       return
     }

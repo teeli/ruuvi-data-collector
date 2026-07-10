@@ -1,4 +1,5 @@
 import * as z from 'zod'
+import { byte } from '@scanner/byte-schema'
 import { isNil } from '@util/is-nil'
 import { clamp } from '@util/math'
 
@@ -19,21 +20,6 @@ const PM25_SCALE = AQI_MAX / (PM25_MAX - PM25_MIN) // ≈ 1.6667
 const CO2_MAX = 2300
 const CO2_MIN = 420
 const CO2_SCALE = AQI_MAX / (CO2_MAX - CO2_MIN) // ≈ 0.05319
-
-// Not available is signified by the largest presentable number for unsigned values
-// and the smallest presentable number for signed values.
-// https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2
-const byte = (bitLength: number, unsigned: boolean = false) => {
-  const length = 2 ** bitLength
-  const max = unsigned ? length - 1 : length / 2 - 1
-  const min = unsigned ? 0 : -(length / 2)
-  const sentinel = unsigned ? max : min
-  return z
-    .int()
-    .min(min)
-    .max(max)
-    .transform((value) => (value === sentinel ? undefined : value))
-}
 
 // Not available is signified by all bits set.
 const macCodec = (byteLength: number) => {
@@ -114,9 +100,9 @@ const iaqsTransform = <T extends { 'pm2.5': number | undefined; co2: number | un
 
 const baseSchema = z.object({
   address: macCodec(6),
-  temperature: byte(16).transform(temperatureTransform).transform(toPrecision(3)),
-  humidity: byte(16, true).transform(humidityTransform).transform(toPrecision(4)),
-  pressure: byte(16, true).transform(pressureTransform),
+  temperature: byte().length(16).signed().sentinel(0x8000).transform(temperatureTransform).transform(toPrecision(3)),
+  humidity: byte().length(16).unsigned().sentinel(0xffff).transform(humidityTransform).transform(toPrecision(4)),
+  pressure: byte().length(16).unsigned().sentinel(0xffff).transform(pressureTransform),
 })
 
 /**
@@ -127,23 +113,38 @@ const ruuviTagSchema = z
   .object({
     ...baseSchema.shape,
     dataFormat: z.literal(DATA_FORMAT_5),
-    accelerationX: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
-    accelerationY: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
-    accelerationZ: byte(16).transform(accelerationTransform).transform(toPrecision(4)),
-    powerInfo: byte(16, true),
-    movement: byte(8, true),
-    sequence: byte(16, true),
+    accelerationX: byte()
+      .length(16)
+      .signed()
+      .sentinel(0x8000)
+      .transform(accelerationTransform)
+      .transform(toPrecision(4)),
+    accelerationY: byte()
+      .length(16)
+      .signed()
+      .sentinel(0x8000)
+      .transform(accelerationTransform)
+      .transform(toPrecision(4)),
+    accelerationZ: byte()
+      .length(16)
+      .signed()
+      .sentinel(0x8000)
+      .transform(accelerationTransform)
+      .transform(toPrecision(4)),
+    powerInfo: byte().length(16).unsigned().sentinel(0xffff),
+    movement: byte().length(8).unsigned().sentinel(0xff),
+    sequence: byte().length(16).unsigned().sentinel(0xffff),
   })
   .transform(powerInfoTransform)
 
 const ruuviAirBaseSchema = z.object({
   ...baseSchema.shape,
-  'pm2.5': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
+  'pm2.5': byte().length(16).unsigned().sentinel(0xffff).transform(pmTransform).transform(toPrecision(1)),
   calibration: z.boolean(),
-  co2: byte(16, true),
+  co2: byte().length(16).unsigned().sentinel(0xffff),
   // 9-bit value: dedicated byte + least significant bit from the flags byte
-  voc: byte(9, true),
-  nox: byte(9, true),
+  voc: byte().length(9).unsigned().sentinel(0x1ff),
+  nox: byte().length(9).unsigned().sentinel(0x1ff),
 })
 
 /**
@@ -155,9 +156,9 @@ const ruuviAirSchema = z
     ...ruuviAirBaseSchema.shape,
     dataFormat: z.literal(DATA_FORMAT_6),
     address: macCodec(3),
-    luminosity: byte(8, true).transform(luminosityTransform).transform(toPrecision(2)),
+    luminosity: byte().length(8).unsigned().sentinel(0xff).transform(luminosityTransform).transform(toPrecision(2)),
     // No reserved "not available" value for this field, unlike E1's sequence
-    sequence: z.int().min(0).max(255),
+    sequence: byte().length(8).unsigned(),
   })
   .transform(iaqsTransform)
 
@@ -170,11 +171,16 @@ const ruuviAirExtendedSchema = z
     ...ruuviAirBaseSchema.shape,
     dataFormat: z.literal(DATA_FORMAT_E1),
     address: macCodec(6),
-    'pm1.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
-    'pm4.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
-    'pm10.0': byte(16, true).transform(pmTransform).transform(toPrecision(1)),
-    luminosity: byte(24, true).transform(luminosityExtendedTransform).transform(toPrecision(2)),
-    sequence: byte(24, true),
+    'pm1.0': byte().length(16).unsigned().sentinel(0xffff).transform(pmTransform).transform(toPrecision(1)),
+    'pm4.0': byte().length(16).unsigned().sentinel(0xffff).transform(pmTransform).transform(toPrecision(1)),
+    'pm10.0': byte().length(16).unsigned().sentinel(0xffff).transform(pmTransform).transform(toPrecision(1)),
+    luminosity: byte()
+      .length(24)
+      .unsigned()
+      .sentinel(0xffffff)
+      .transform(luminosityExtendedTransform)
+      .transform(toPrecision(2)),
+    sequence: byte().length(24).unsigned().sentinel(0xffffff),
   })
   .transform(iaqsTransform)
 

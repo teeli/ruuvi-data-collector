@@ -7,7 +7,6 @@ import { isNil } from '@util/is-nil.ts'
 
 const tagFields = ['dataFormat', 'address']
 const ignoreFields = ['calibration']
-const lastSequence: Record<string, number | undefined> = {}
 
 export interface Writer {
   handleEvent: (event: ScannerEvent) => Promise<void>
@@ -23,6 +22,7 @@ export const createWriter: CreateWriter = async ({ client }) => {
 
   const config = await getConfig()
   const influxDb = client.getWriteApi(config.influxdb.org, config.influxdb.bucket, 'ns', config.influxdb.write)
+  const lastSequence: Record<string, number | undefined> = {}
 
   const handleEvent: Writer['handleEvent'] = async (event) => {
     const { address, sequence } = event.data

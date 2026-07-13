@@ -159,4 +159,35 @@ describe('influxdb-writer', () => {
       fields: { co2: '1', nox: '2', voc: '3', sequence: '0' },
     })
   })
+  test('should not share sequence dedup state between writer instances', async ({ expect }) => {
+    const event = {
+      data: {
+        dataFormat: 'E1',
+        address: 'mock-address-isolated',
+        humidity: undefined,
+        pressure: undefined,
+        temperature: undefined,
+        luminosity: undefined,
+        'pm1.0': undefined,
+        'pm2.5': undefined,
+        'pm4.0': undefined,
+        'pm10.0': undefined,
+        calibration: false,
+        co2: 1,
+        nox: 2,
+        voc: 3,
+        sequence: 7,
+        iaqs: undefined,
+      },
+      metadata: { timestamp: new Date() },
+    } satisfies ScannerEvent
+
+    const firstWriter = await createWriter({ client: influxdb })
+    await firstWriter.handleEvent(event)
+
+    const secondWriter = await createWriter({ client: influxdb })
+    await secondWriter.handleEvent(event)
+
+    expect(writePointMock).toHaveBeenCalledTimes(2)
+  })
 })

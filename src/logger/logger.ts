@@ -11,7 +11,8 @@ import {
 } from '@logtape/logtape'
 import { redactByField } from '@logtape/redaction'
 import { memoize } from '@util/memoize'
-import { mkdir } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { access, mkdir, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 /**
@@ -34,6 +35,27 @@ const SENSITIVE_FIELD_PATTERNS = [
   /phone/i,
 ]
 
+/**
+ * Ensures `logFile`'s directory exists and is actually writable by the
+ * current user, rather than letting a permission error surface later as a
+ * silently dropped write inside the non-blocking/streaming log sinks.
+ */
+export const assertLogFileWritable = async (logFile: string): Promise<void> => {
+  const logDir = dirname(logFile)
+  await mkdir(logDir, { recursive: true })
+
+  const logFileExists = await stat(logFile).then(
+    () => true,
+    () => false
+  )
+  const writeTarget = logFileExists ? logFile : logDir
+  try {
+    await access(writeTarget, constants.W_OK)
+  } catch {
+    throw new Error(`No write permission for the log file at "${logFile}"`)
+  }
+}
+
 const configureLogger = memoize(async (): Promise<void> => {
   const config = await getConfig()
 
@@ -45,7 +67,7 @@ const configureLogger = memoize(async (): Promise<void> => {
     levelStyle: 'bold',
   })
 
-  await mkdir(dirname(config.log.file), { recursive: true })
+  await assertLogFileWritable(config.log.file)
 
   await configure({
     sinks: {

@@ -9,7 +9,7 @@ if (!testLogDir) {
 export const testLogFile = join(testLogDir, 'test.log')
 
 export const testConfig = defineConfig({
-  aliases: { 'mock-address': 'mock-alias' },
+  aliases: { 'AA:BB:CC:DD:EE:FF': 'mock-alias' },
   influxdb: { bucket: 'dummy', org: 'dummy', connection: { url: 'http://dummy', token: 'dummy' } },
   log: { level: 'debug', file: testLogFile },
 })

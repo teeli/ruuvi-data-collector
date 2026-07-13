@@ -1,6 +1,6 @@
-import { z } from 'zod'
 import { getLogLevels } from '@logtape/logtape'
 import { memoize } from '@util/memoize'
+import { z } from 'zod'
 
 const ConfigSchema = z.object({
   influxdb: z.object({
@@ -15,8 +15,12 @@ const ConfigSchema = z.object({
       .optional()
       .prefault({}),
   }),
-  // TODO: Add validation for Ruuvi's short mac format
-  aliases: z.record(z.string(), z.string()).optional(),
+  aliases: z
+    .record(
+      z.mac().transform((value) => value.toUpperCase()),
+      z.string()
+    )
+    .optional(),
   log: z
     .object({
       level: z.enum(getLogLevels()).prefault('info'),

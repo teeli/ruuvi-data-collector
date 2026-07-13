@@ -5,7 +5,9 @@ import { defineConfig } from '@config/config.ts'
  */
 export default defineConfig({
   /**
-   * Aliases for your known Ruuvi devices. InfluxDB data points will have an alias tag for known devices.
+   * Define aliases for your known Ruuvi devices as key value pairs of mac address (case-insensitive) and alias.
+   *
+   * InfluxDB data points will have an alias tag for known devices.
    */
   aliases: { 'AA:BB:CC:DD:EE:FF': 'Bedroom' },
   /**

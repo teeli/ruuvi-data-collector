@@ -84,6 +84,61 @@ describe('scanner', () => {
     expect(nobleMock.stopScanningAsync).toHaveBeenCalledTimes(1)
   })
 
+  test<CustomContext>('should wait for an in-flight onEvent call before close resolves', async ({
+    expect,
+    discover,
+    scanner,
+  }) => {
+    const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
+    let resolveEvent: () => void = () => {}
+    onEvent.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveEvent = resolve
+        })
+    )
+
+    const discoverPromise = discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
+
+    let closed = false
+    const closePromise = scanner.close().then(() => {
+      closed = true
+    })
+
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(closed).toBe(false)
+
+    resolveEvent()
+    await closePromise
+
+    expect(closed).toBe(true)
+    await discoverPromise
+  })
+
+  test<CustomContext>('should not reject close when an in-flight onEvent call rejects', async ({
+    expect,
+    discover,
+    scanner,
+  }) => {
+    const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
+    let rejectEvent: (error: Error) => void = () => {}
+    onEvent.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectEvent = reject
+        })
+    )
+
+    const discoverPromise = discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
+    const closePromise = scanner.close()
+
+    rejectEvent(new Error('write failed'))
+
+    await expect(closePromise).resolves.toBeUndefined()
+    await discoverPromise
+  })
+
   test<CustomContext>('should call onEvent when ruuvi device is discovered', async ({ expect, discover }) => {
     const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
     discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })

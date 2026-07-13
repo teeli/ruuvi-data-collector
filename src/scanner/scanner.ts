@@ -95,7 +95,7 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
     noble.off('stateChange', handleStateChange)
     noble.off('discover', handleDiscover)
     await noble.stopScanningAsync()
-    await Promise.all(inFlightEvents)
+    await Promise.allSettled(inFlightEvents)
   }
 
   return { start, close }

@@ -60,7 +60,7 @@ const configureLogger = memoize(async (): Promise<void> => {
 })
 
 export const getLogger = async (category: string | readonly string[]): Promise<Logger> => {
-  await configureLogger.get()
+  await configureLogger()
 
   return getLogtapeLogger(category)
 }

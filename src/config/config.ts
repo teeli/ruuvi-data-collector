@@ -26,4 +26,4 @@ const loadConfig = memoize(async (): Promise<Config> => {
   return defineConfig(rawConfig)
 })
 
-export const getConfig = (): Promise<Config> => loadConfig.get()
+export const getConfig = (): Promise<Config> => loadConfig()

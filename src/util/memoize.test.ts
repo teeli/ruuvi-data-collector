@@ -6,7 +6,7 @@ describe('memoize', () => {
     const compute = vi.fn<() => Promise<string>>(async () => 'computed')
     const cached = memoize(compute)
 
-    const [first, second] = await Promise.all([cached.get(), cached.get()])
+    const [first, second] = await Promise.all([cached(), cached()])
 
     expect(first).toBe('computed')
     expect(second).toBe('computed')
@@ -17,17 +17,8 @@ describe('memoize', () => {
     const compute = vi.fn<() => string>(() => 'computed')
     const cached = memoize(compute)
 
-    expect(cached.get()).toBe('computed')
-    expect(cached.get()).toBe('computed')
+    expect(cached()).toBe('computed')
+    expect(cached()).toBe('computed')
     expect(compute).toHaveBeenCalledTimes(1)
-  })
-
-  test('set overrides the cached value without calling compute', async ({ expect }) => {
-    const compute = vi.fn<() => Promise<string>>(async () => 'computed')
-    const cached = memoize(compute)
-    cached.set(Promise.resolve('overridden'))
-
-    await expect(cached.get()).resolves.toBe('overridden')
-    expect(compute).not.toHaveBeenCalled()
   })
 })

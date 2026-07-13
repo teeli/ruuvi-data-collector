@@ -1,7 +1,7 @@
 import { getLogger } from '@logger/logger'
 import type { RuuviData } from '@scanner/ruuvi-data-schema'
 import { RuuviDataSchema } from '@scanner/ruuvi-data-schema'
-import type { Peripheral } from '@stoprocent/noble'
+import type { AdapterState, Peripheral } from '@stoprocent/noble'
 import noble from '@stoprocent/noble'
 
 const RUUVI_COMPANY_CODE = 0x0499
@@ -11,11 +11,29 @@ const ruuviDevices = new Map<string, Peripheral>()
 type ScannerEventMetadata = { timestamp: Date }
 export type ScannerEvent = { metadata: ScannerEventMetadata; data: RuuviData }
 type ScannerParams = { onEvent: (event: ScannerEvent) => Promise<void> }
-type Scanner = (params: ScannerParams) => Promise<void>
+type StartScanner = () => Promise<void>
+type CloseScanner = () => Promise<void>
+export type Scanner = { start: StartScanner; close: CloseScanner }
+type CreateScanner = (params: ScannerParams) => Promise<Scanner>
 
-export const scanner: Scanner = async (params): Promise<void> => {
+export const createScanner: CreateScanner = async (params) => {
   const logger = await getLogger(['ruuvi', 'scanner'])
   logger.debug(`Initializing scanner...`)
+
+  const inFlightEvents = new Set<Promise<void>>()
+
+  const readManufacturerData = (peripheral: Peripheral) => {
+    const manufacturerData = peripheral.advertisement.manufacturerData
+    return manufacturerData.slice(2)
+  }
+
+  const isRuuviDevice = (peripheral: Peripheral): boolean => {
+    if (!peripheral.advertisement.manufacturerData || peripheral.advertisement.manufacturerData.length < 2) {
+      return false
+    }
+
+    return peripheral.advertisement.manufacturerData.readUInt16LE(0) === RUUVI_COMPANY_CODE
+  }
 
   const handleDiscover = async (peripheral: Peripheral): Promise<void> => {
     if (isRuuviDevice(peripheral)) {
@@ -31,7 +49,10 @@ export const scanner: Scanner = async (params): Promise<void> => {
       if (success) {
         const metadata = { timestamp: new Date(), eventType: 'RuuviTag' }
         try {
-          await params.onEvent({ data, metadata })
+          const eventPromise = params.onEvent({ data, metadata })
+          inFlightEvents.add(eventPromise)
+          await eventPromise
+          inFlightEvents.delete(eventPromise)
         } catch (error) {
           logger.error('onEvent handler failed {error}', { error })
         }
@@ -39,7 +60,7 @@ export const scanner: Scanner = async (params): Promise<void> => {
     }
   }
 
-  noble.on('stateChange', async (state) => {
+  const handleStateChange = async (state: AdapterState) => {
     logger.debug(`BLE adapter state change: ${state}`, { state })
     if (state === 'poweredOn') {
       try {
@@ -51,27 +72,27 @@ export const scanner: Scanner = async (params): Promise<void> => {
     } else if (state === 'poweredOff') {
       await noble.stopScanningAsync()
     }
-  })
+  }
 
-  noble.on('discover', handleDiscover)
+  const start: StartScanner = async () => {
+    logger.info('Starting the BLE scanner...')
+    try {
+      noble.on('stateChange', handleStateChange)
+      noble.on('discover', handleDiscover)
+      await noble.waitForPoweredOnAsync()
+    } catch (error) {
+      logger.error('BLE discovery failed', { error })
+      await noble.stopScanningAsync()
+    }
+  }
 
-  try {
-    await noble.waitForPoweredOnAsync()
-  } catch (error) {
-    logger.error('BLE discovery failed', { error })
+  const close: CloseScanner = async () => {
+    logger.info('Closing the BLE scanner...')
+    noble.off('stateChange', handleStateChange)
+    noble.off('discover', handleDiscover)
     await noble.stopScanningAsync()
-  }
-}
-
-const readManufacturerData = (peripheral: Peripheral) => {
-  const manufacturerData = peripheral.advertisement.manufacturerData
-  return manufacturerData.slice(2)
-}
-
-const isRuuviDevice = (peripheral: Peripheral): boolean => {
-  if (!peripheral.advertisement.manufacturerData || peripheral.advertisement.manufacturerData.length < 2) {
-    return false
+    await Promise.all(inFlightEvents)
   }
 
-  return peripheral.advertisement.manufacturerData.readUInt16LE(0) === RUUVI_COMPANY_CODE
+  return { start, close }
 }

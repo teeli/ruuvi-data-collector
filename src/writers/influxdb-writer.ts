@@ -12,9 +12,10 @@ const lastSequence: Record<string, number | undefined> = {}
 type HandleEvent = (event: ScannerEvent) => Promise<void>
 type CloseWriter = () => Promise<void>
 type InfluxDbWriterConfig = { client: InfluxDB }
-type InfluxDbWriter = (config: InfluxDbWriterConfig) => Promise<{ handleEvent: HandleEvent; close: CloseWriter }>
+export type InfluxDBWriter = { handleEvent: HandleEvent; close: CloseWriter }
+type CreateWriter = (config: InfluxDbWriterConfig) => Promise<InfluxDBWriter>
 
-export const createWriter: InfluxDbWriter = async ({ client }) => {
+export const createWriter: CreateWriter = async ({ client }) => {
   const logger = await getLogger(['ruuvi', 'writer'])
   logger.info(`Initializing InfluxDB writer...`)
 

@@ -1,15 +1,15 @@
-import { afterEach, beforeEach, describe, test, vi } from 'vitest'
-import type { TestContext } from 'vitest'
-import { scanner } from './scanner'
-import type { ScannerEvent } from './scanner'
 import noble from '@stoprocent/noble'
+import type { TestContext } from 'vitest'
+import { afterEach, beforeEach, describe, test, vi } from 'vitest'
+import type { Scanner, ScannerEvent } from './scanner'
+import { createScanner } from './scanner'
 
 vi.mock('@stoprocent/noble')
 const nobleMock = vi.mocked(noble)
 
 const onEvent = vi.fn<(event: ScannerEvent) => Promise<void>>()
 
-type CustomContext = TestContext & { discover: Function; stateChange: Function }
+type CustomContext = TestContext & { discover: Function; stateChange: Function; scanner: Scanner }
 
 describe('scanner', () => {
   beforeEach<CustomContext>(async (context) => {
@@ -24,7 +24,8 @@ describe('scanner', () => {
       return nobleMock
     })
 
-    await scanner({ onEvent })
+    context.scanner = await createScanner({ onEvent })
+    await context.scanner.start()
   })
 
   afterEach(() => {
@@ -54,6 +55,17 @@ describe('scanner', () => {
     })
 
     stateChange('poweredOn')
+
+    expect(nobleMock.waitForPoweredOnAsync).toHaveBeenCalledTimes(1)
+    expect(nobleMock.startScanningAsync).toHaveBeenCalledTimes(1)
+    expect(nobleMock.startScanningAsync).toHaveBeenCalledWith(undefined, true)
+    expect(nobleMock.stopScanningAsync).toHaveBeenCalledTimes(1)
+  })
+
+  test<CustomContext>('should stop scanning when close is called', async ({ expect, stateChange, scanner }) => {
+    stateChange('poweredOn')
+
+    await scanner.close()
 
     expect(nobleMock.waitForPoweredOnAsync).toHaveBeenCalledTimes(1)
     expect(nobleMock.startScanningAsync).toHaveBeenCalledTimes(1)

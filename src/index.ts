@@ -1,12 +1,13 @@
 import { createInfluxDbClient } from '@clients/influxdb-client'
 import { closeLogger, getLogger } from '@logger/logger'
-import { scanner } from '@scanner/scanner'
+import { createScanner } from '@scanner/scanner'
 import { createWriter } from '@writers/influxdb-writer'
 
 const [logger, influxDbClient] = await Promise.all([getLogger(['ruuvi']), createInfluxDbClient()])
 logger.info('Starting Ruuvi data collector...')
 
 const writer = await createWriter({ client: influxDbClient })
+const scanner = await createScanner({ onEvent: writer.handleEvent })
 
 let shuttingDown = false
 const shutdown = async (signal: string): Promise<void> => {
@@ -17,13 +18,18 @@ const shutdown = async (signal: string): Promise<void> => {
 
   logger.info(`Received {signal}, shutting down...`, { signal })
 
-  await writer.close()
-  await closeLogger()
-
-  process.exit(0)
+  try {
+    await scanner.close()
+    await writer.close()
+    await closeLogger()
+    process.exit(0)
+  } catch (error) {
+    logger.error('Shutdown failed {error}', { error })
+    process.exit(1)
+  }
 }
 
 process.on('SIGINT', () => void shutdown('SIGINT'))
 process.on('SIGTERM', () => void shutdown('SIGTERM'))
 
-await scanner({ onEvent: writer.handleEvent })
+await scanner.start()

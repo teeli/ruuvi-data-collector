@@ -18,7 +18,7 @@ type CreateScanner = (scannerConfig: ScannerConfig) => Promise<Scanner>
 
 export const createScanner: CreateScanner = async ({ onEvent }) => {
   const logger = await getLogger(['ruuvi', 'scanner'])
-  logger.debug(`Initializing scanner...`)
+  logger.info(`Initializing scanner...`)
 
   const ruuviDevices = new Map<string, Peripheral>()
   const inFlightEvents = new Set<Promise<void>>()
@@ -39,13 +39,13 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
   const handleDiscover = async (peripheral: Peripheral): Promise<void> => {
     if (isRuuviDevice(peripheral)) {
       if (!ruuviDevices.has(peripheral.id) && peripheral.connectable) {
-        logger.info(`Found a new Ruuvi device: ${peripheral.advertisement.localName}`, { peripheral })
+        logger.info(`Found a new Ruuvi device: {peripheral.advertisement.localName}`, { peripheral })
         ruuviDevices.set(peripheral.id, peripheral)
       }
 
       const { data, success, error } = RuuviDataSchema.safeParse(readManufacturerData(peripheral))
       if (error) {
-        logger.warn('Parse error', error)
+        logger.warn('Failed to parse manufacturer data: {error}', error)
       }
       if (success) {
         const metadata = { timestamp: new Date(), eventType: 'RuuviTag' }
@@ -54,7 +54,7 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
         try {
           await eventPromise
         } catch (error) {
-          logger.error('onEvent handler failed {error}', { error })
+          logger.error('onEvent handler failed: {error}', { error })
         } finally {
           inFlightEvents.delete(eventPromise)
         }
@@ -63,12 +63,12 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
   }
 
   const handleStateChange = async (state: AdapterState) => {
-    logger.debug(`BLE adapter state change: ${state}`, { state })
+    logger.debug(`BLE adapter state change: {state}`, { state })
     if (state === 'poweredOn') {
       try {
         await noble.startScanningAsync(undefined, true)
       } catch (error) {
-        logger.error('BLE scan start failed', { error })
+        logger.error('BLE scan start failed: {error}', { error })
         await noble.stopScanningAsync()
       }
     } else if (state === 'poweredOff') {
@@ -83,7 +83,7 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
       noble.on('discover', handleDiscover)
       await noble.waitForPoweredOnAsync()
     } catch (error) {
-      logger.error('BLE discovery failed', { error })
+      logger.error('BLE discovery failed: {error}', { error })
       noble.off('stateChange', handleStateChange)
       noble.off('discover', handleDiscover)
       await noble.stopScanningAsync()

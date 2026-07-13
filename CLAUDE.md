@@ -60,6 +60,8 @@ both `dependencies` and `devDependencies`.
   - `@clients/*` -> `src/clients`
   - `@util/*` → `src/util`.
 - Use block comments `/* */` for multi-line comments
+- Prefer using Bun native APIs over node.js
+- Prefer async operations over sync (e.g. filesystem)
 
 ## Logging
 

@@ -11,6 +11,8 @@ import {
 } from '@logtape/logtape'
 import { redactByField } from '@logtape/redaction'
 import { memoize } from '@util/memoize'
+import { mkdir } from 'node:fs/promises'
+import { dirname } from 'node:path'
 
 /**
  * Same as @logtape/redaction's DEFAULT_REDACT_FIELDS, minus /address/i: the
@@ -42,6 +44,8 @@ const configureLogger = memoize(async (): Promise<void> => {
     level: 'FULL',
     levelStyle: 'bold',
   })
+
+  await mkdir(dirname(config.log.file), { recursive: true })
 
   await configure({
     sinks: {

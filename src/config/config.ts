@@ -18,7 +18,10 @@ const ConfigSchema = z.object({
   // TODO: Add validation for Ruuvi's short mac format
   aliases: z.record(z.string(), z.string()).optional(),
   log: z
-    .object({ level: z.enum(getLogLevels()).prefault('info'), file: z.string().prefault('ruuvi-data-collector.log') })
+    .object({
+      level: z.enum(getLogLevels()).prefault('info'),
+      file: z.string().prefault('logs/ruuvi-data-collector.log'),
+    })
     .optional()
     .prefault({}),
 })

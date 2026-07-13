@@ -30,8 +30,8 @@ export default defineConfig({
      */
     level: 'info',
     /**
-     * Set log file location. Default is "ruuvi-data-collector.log"
+     * Set log file location. Default is "logs/ruuvi-data-collector.log"
      */
-    file: 'ruuvi-data-collector.log',
+    file: 'logs/ruuvi-data-collector.log',
   },
 })

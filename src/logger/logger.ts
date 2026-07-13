@@ -3,6 +3,7 @@ import { getStreamFileSink } from '@logtape/file'
 import type { Logger } from '@logtape/logtape'
 import {
   configure,
+  dispose,
   getAnsiColorFormatter,
   getConsoleSink,
   getLogger as getLogtapeLogger,
@@ -63,4 +64,13 @@ export const getLogger = async (category: string | readonly string[]): Promise<L
   await configureLogger()
 
   return getLogtapeLogger(category)
+}
+
+/**
+ * The console sink is non-blocking and the file sink streams writes
+ * asynchronously, so pending log records can still be in flight when
+ * `process.exit()` is called. Await this before exiting to flush them.
+ */
+export const closeLogger = async (): Promise<void> => {
+  await dispose()
 }

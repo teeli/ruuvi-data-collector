@@ -11,7 +11,16 @@ export default defineConfig({
   /**
    * InfluxDB credentials
    */
-  influxdb: { bucket: 'ruuvi', org: 'my-org', connection: { url: 'http://my-host', token: 'ACCESS_TOKEN' } },
+  influxdb: {
+    bucket: 'ruuvi',
+    org: 'my-org',
+    connection: { url: 'http://my-host', token: 'ACCESS_TOKEN' },
+    /**
+     * Write batching options (Optional). Defaults match the InfluxDB
+     * client's own defaults.
+     */
+    // write: { batchSize: 1000, flushInterval: 60000 },
+  },
   /**
    * Log settings (Optional)
    */

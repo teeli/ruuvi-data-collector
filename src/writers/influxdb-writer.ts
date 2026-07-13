@@ -10,15 +10,16 @@ const ignoreFields = ['calibration']
 const lastSequence: Record<string, number | undefined> = {}
 
 type HandleEvent = (event: ScannerEvent) => Promise<void>
+type CloseWriter = () => Promise<void>
 type InfluxDbWriterConfig = { client: InfluxDB }
-type InfluxDbWriter = (config: InfluxDbWriterConfig) => Promise<{ handleEvent: HandleEvent }>
+type InfluxDbWriter = (config: InfluxDbWriterConfig) => Promise<{ handleEvent: HandleEvent; close: CloseWriter }>
 
 export const createWriter: InfluxDbWriter = async ({ client }) => {
   const logger = await getLogger(['ruuvi', 'writer'])
-  logger.debug(`Initializing InfluxDB writer...`)
+  logger.info(`Initializing InfluxDB writer...`)
 
   const config = await getConfig()
-  const influxDb = client.getWriteApi(config.influxdb.org, config.influxdb.bucket, 'ns')
+  const influxDb = client.getWriteApi(config.influxdb.org, config.influxdb.bucket, 'ns', config.influxdb.write)
 
   const handleEvent: HandleEvent = async (event) => {
     const { address, sequence } = event.data
@@ -52,8 +53,12 @@ export const createWriter: InfluxDbWriter = async ({ client }) => {
 
     influxDb.writePoint(point)
     logger.debug(`Wrote Point to InfluxDB: ${point.toLineProtocol(influxDb)}`)
-    await influxDb.flush()
   }
 
-  return { handleEvent }
+  const close: CloseWriter = async () => {
+    logger.info('Closing InfluxDB writer...')
+    await influxDb.close()
+  }
+
+  return { handleEvent, close }
 }

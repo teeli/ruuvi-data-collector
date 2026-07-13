@@ -4,10 +4,11 @@ import { afterEach, beforeAll, describe, test, vi } from 'vitest'
 import { createWriter } from './influxdb-writer'
 
 const writePointMock = vi.fn<WriteApi['writePoint']>()
-const flushMock = vi.fn<WriteApi['flush']>()
-const influxdb = {
-  getWriteApi: vi.fn<() => Partial<WriteApi>>(() => ({ writePoint: writePointMock, flush: flushMock })),
-} as unknown as InfluxDB
+const closeMock = vi.fn<WriteApi['close']>()
+const getWriteApiMock = vi.fn<InfluxDB['getWriteApi']>(
+  () => ({ writePoint: writePointMock, close: closeMock }) as unknown as WriteApi
+)
+const influxdb = { getWriteApi: getWriteApiMock } as unknown as InfluxDB
 
 describe('influxdb-writer', () => {
   let writer: Awaited<ReturnType<typeof createWriter>>
@@ -18,6 +19,16 @@ describe('influxdb-writer', () => {
 
   afterEach(() => {
     vi.resetAllMocks()
+  })
+
+  test('should create the write API with configured write options', ({ expect }) => {
+    expect(getWriteApiMock).toHaveBeenCalledWith('dummy', 'dummy', 'ns', { batchSize: 1000, flushInterval: 60000 })
+  })
+
+  test('should close the underlying write API', async ({ expect }) => {
+    await writer.close()
+
+    expect(closeMock).toHaveBeenCalledTimes(1)
   })
 
   test('should write point to influxdb', async ({ expect }) => {
@@ -56,7 +67,6 @@ describe('influxdb-writer', () => {
         movement: '10',
       },
     })
-    expect(flushMock).toHaveBeenCalledTimes(1)
   })
   test('should filter undefined values', async ({ expect }) => {
     await writer.handleEvent({
@@ -84,7 +94,6 @@ describe('influxdb-writer', () => {
       tags: { dataFormat: '6', address: 'mock-address-no-alias' },
       fields: { co2: '1', nox: '2', voc: '3', sequence: '4' },
     })
-    expect(flushMock).toHaveBeenCalledTimes(1)
   })
   test('should not write same sequence twice in a row', async ({ expect }) => {
     const event = {
@@ -117,7 +126,6 @@ describe('influxdb-writer', () => {
       tags: { dataFormat: 'E1', address: 'mock-address-no-alias' },
       fields: { co2: '1', nox: '2', voc: '3', sequence: '5' },
     })
-    expect(flushMock).toHaveBeenCalledTimes(1)
   })
   test('should not write same sequence twice in a row when sequence is 0', async ({ expect }) => {
     const event = {
@@ -150,6 +158,5 @@ describe('influxdb-writer', () => {
       tags: { dataFormat: 'E1', address: 'mock-address-zero-sequence' },
       fields: { co2: '1', nox: '2', voc: '3', sequence: '0' },
     })
-    expect(flushMock).toHaveBeenCalledTimes(1)
   })
 })

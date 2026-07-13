@@ -74,6 +74,11 @@ export const getLogger = async (category: string | readonly string[]): Promise<L
  * The console sink is non-blocking and the file sink streams writes
  * asynchronously, so pending log records can still be in flight when
  * `process.exit()` is called. Await this before exiting to flush them.
+ *
+ * `configureLogger` is memoized, and disposing here does not reset that
+ * cache — no code may call `getLogger()` again after `closeLogger()` has
+ * run, since it would skip reconfiguration and return a logger bound to
+ * the now-disposed sinks.
  */
 export const closeLogger = async (): Promise<void> => {
   await dispose()

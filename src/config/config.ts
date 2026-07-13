@@ -7,11 +7,21 @@ const ConfigSchema = z.object({
     connection: z.object({ url: z.url().prefault('http://localhost:8086'), token: z.string() }),
     org: z.string(),
     bucket: z.string(),
+    write: z
+      .object({
+        batchSize: z.number().int().positive().prefault(1000),
+        flushInterval: z.number().int().positive().prefault(60000),
+      })
+      .optional()
+      .prefault({}),
   }),
   // TODO: Add validation for Ruuvi's short mac format
   aliases: z.record(z.string(), z.string()).optional(),
   log: z
-    .object({ level: z.enum(getLogLevels()).prefault('info'), file: z.string().prefault('ruuvi-data-collector.log') })
+    .object({
+      level: z.enum(getLogLevels()).prefault('info'),
+      file: z.string().prefault('logs/ruuvi-data-collector.log'),
+    })
     .optional()
     .prefault({}),
 })

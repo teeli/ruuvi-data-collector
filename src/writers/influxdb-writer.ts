@@ -7,20 +7,24 @@ import { isNil } from '@util/is-nil.ts'
 
 const tagFields = ['dataFormat', 'address']
 const ignoreFields = ['calibration']
-const lastSequence: Record<string, number | undefined> = {}
 
-type HandleEvent = (event: ScannerEvent) => Promise<void>
-type InfluxDbWriterConfig = { client: InfluxDB }
-type InfluxDbWriter = (config: InfluxDbWriterConfig) => Promise<{ handleEvent: HandleEvent }>
+export interface Writer {
+  handleEvent: (event: ScannerEvent) => Promise<void>
+  close: () => Promise<void>
+}
 
-export const createWriter: InfluxDbWriter = async ({ client }) => {
+type WriterConfig = { client: InfluxDB }
+type CreateWriter = (writerConfig: WriterConfig) => Promise<Writer>
+
+export const createWriter: CreateWriter = async ({ client }) => {
   const logger = await getLogger(['ruuvi', 'writer'])
-  logger.debug(`Initializing InfluxDB writer...`)
+  logger.info(`Initializing InfluxDB writer...`)
 
   const config = await getConfig()
-  const influxDb = client.getWriteApi(config.influxdb.org, config.influxdb.bucket, 'ns')
+  const influxDb = client.getWriteApi(config.influxdb.org, config.influxdb.bucket, 'ns', config.influxdb.write)
+  const lastSequence: Record<string, number | undefined> = {}
 
-  const handleEvent: HandleEvent = async (event) => {
+  const handleEvent: Writer['handleEvent'] = async (event) => {
     const { address, sequence } = event.data
 
     if (isNil(address)) {
@@ -52,8 +56,12 @@ export const createWriter: InfluxDbWriter = async ({ client }) => {
 
     influxDb.writePoint(point)
     logger.debug(`Wrote Point to InfluxDB: ${point.toLineProtocol(influxDb)}`)
-    await influxDb.flush()
   }
 
-  return { handleEvent }
+  const close: Writer['close'] = async () => {
+    logger.info('Closing InfluxDB writer...')
+    await influxDb.close()
+  }
+
+  return { handleEvent, close }
 }

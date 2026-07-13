@@ -1,15 +1,15 @@
-import { afterEach, beforeEach, describe, test, vi } from 'vitest'
-import type { TestContext } from 'vitest'
-import { scanner } from './scanner'
-import type { ScannerEvent } from './scanner'
 import noble from '@stoprocent/noble'
+import type { TestContext } from 'vitest'
+import { afterEach, beforeEach, describe, test, vi } from 'vitest'
+import type { Scanner, ScannerEvent } from './scanner'
+import { createScanner } from './scanner'
 
 vi.mock('@stoprocent/noble')
 const nobleMock = vi.mocked(noble)
 
 const onEvent = vi.fn<(event: ScannerEvent) => Promise<void>>()
 
-type CustomContext = TestContext & { discover: Function; stateChange: Function }
+type CustomContext = TestContext & { discover: Function; stateChange: Function; scanner: Scanner }
 
 describe('scanner', () => {
   beforeEach<CustomContext>(async (context) => {
@@ -24,7 +24,8 @@ describe('scanner', () => {
       return nobleMock
     })
 
-    await scanner({ onEvent })
+    context.scanner = await createScanner({ onEvent })
+    await context.scanner.start()
   })
 
   afterEach(() => {
@@ -59,6 +60,83 @@ describe('scanner', () => {
     expect(nobleMock.startScanningAsync).toHaveBeenCalledTimes(1)
     expect(nobleMock.startScanningAsync).toHaveBeenCalledWith(undefined, true)
     expect(nobleMock.stopScanningAsync).toHaveBeenCalledTimes(1)
+  })
+
+  test<CustomContext>('should remove listeners when powering on fails', async ({ expect }) => {
+    nobleMock.waitForPoweredOnAsync.mockRejectedValueOnce(new Error('mock error'))
+
+    const failedScanner = await createScanner({ onEvent })
+    await failedScanner.start()
+
+    expect(nobleMock.off).toHaveBeenCalledWith('stateChange', expect.any(Function))
+    expect(nobleMock.off).toHaveBeenCalledWith('discover', expect.any(Function))
+    expect(nobleMock.stopScanningAsync).toHaveBeenCalledTimes(1)
+  })
+
+  test<CustomContext>('should stop scanning when close is called', async ({ expect, stateChange, scanner }) => {
+    stateChange('poweredOn')
+
+    await scanner.close()
+
+    expect(nobleMock.waitForPoweredOnAsync).toHaveBeenCalledTimes(1)
+    expect(nobleMock.startScanningAsync).toHaveBeenCalledTimes(1)
+    expect(nobleMock.startScanningAsync).toHaveBeenCalledWith(undefined, true)
+    expect(nobleMock.stopScanningAsync).toHaveBeenCalledTimes(1)
+  })
+
+  test<CustomContext>('should wait for an in-flight onEvent call before close resolves', async ({
+    expect,
+    discover,
+    scanner,
+  }) => {
+    const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
+    let resolveEvent: () => void = () => {}
+    onEvent.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveEvent = resolve
+        })
+    )
+
+    const discoverPromise = discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
+
+    let closed = false
+    const closePromise = scanner.close().then(() => {
+      closed = true
+    })
+
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(closed).toBe(false)
+
+    resolveEvent()
+    await closePromise
+
+    expect(closed).toBe(true)
+    await discoverPromise
+  })
+
+  test<CustomContext>('should not reject close when an in-flight onEvent call rejects', async ({
+    expect,
+    discover,
+    scanner,
+  }) => {
+    const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
+    let rejectEvent: (error: Error) => void = () => {}
+    onEvent.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectEvent = reject
+        })
+    )
+
+    const discoverPromise = discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
+    const closePromise = scanner.close()
+
+    rejectEvent(new Error('write failed'))
+
+    await expect(closePromise).resolves.toBeUndefined()
+    await discoverPromise
   })
 
   test<CustomContext>('should call onEvent when ruuvi device is discovered', async ({ expect, discover }) => {

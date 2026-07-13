@@ -1,21 +1,40 @@
 import { getLogger } from '@logger/logger'
 import type { RuuviData } from '@scanner/ruuvi-data-schema'
 import { RuuviDataSchema } from '@scanner/ruuvi-data-schema'
-import type { Peripheral } from '@stoprocent/noble'
+import type { AdapterState, Peripheral } from '@stoprocent/noble'
 import noble from '@stoprocent/noble'
 
 const RUUVI_COMPANY_CODE = 0x0499
 
-const ruuviDevices = new Map<string, Peripheral>()
+export type ScannerEvent = { metadata: { timestamp: Date }; data: RuuviData }
 
-type ScannerEventMetadata = { timestamp: Date }
-export type ScannerEvent = { metadata: ScannerEventMetadata; data: RuuviData }
-type ScannerParams = { onEvent: (event: ScannerEvent) => Promise<void> }
-type Scanner = (params: ScannerParams) => Promise<void>
+export interface Scanner {
+  start: () => Promise<void>
+  close: () => Promise<void>
+}
 
-export const scanner: Scanner = async (params): Promise<void> => {
+type ScannerConfig = { onEvent: (event: ScannerEvent) => Promise<void> }
+type CreateScanner = (scannerConfig: ScannerConfig) => Promise<Scanner>
+
+export const createScanner: CreateScanner = async ({ onEvent }) => {
   const logger = await getLogger(['ruuvi', 'scanner'])
   logger.debug(`Initializing scanner...`)
+
+  const ruuviDevices = new Map<string, Peripheral>()
+  const inFlightEvents = new Set<Promise<void>>()
+
+  const readManufacturerData = (peripheral: Peripheral) => {
+    const manufacturerData = peripheral.advertisement.manufacturerData
+    return manufacturerData.slice(2)
+  }
+
+  const isRuuviDevice = (peripheral: Peripheral): boolean => {
+    if (!peripheral.advertisement.manufacturerData || peripheral.advertisement.manufacturerData.length < 2) {
+      return false
+    }
+
+    return peripheral.advertisement.manufacturerData.readUInt16LE(0) === RUUVI_COMPANY_CODE
+  }
 
   const handleDiscover = async (peripheral: Peripheral): Promise<void> => {
     if (isRuuviDevice(peripheral)) {
@@ -30,16 +49,20 @@ export const scanner: Scanner = async (params): Promise<void> => {
       }
       if (success) {
         const metadata = { timestamp: new Date(), eventType: 'RuuviTag' }
+        const eventPromise = onEvent({ data, metadata })
+        inFlightEvents.add(eventPromise)
         try {
-          await params.onEvent({ data, metadata })
+          await eventPromise
         } catch (error) {
           logger.error('onEvent handler failed {error}', { error })
+        } finally {
+          inFlightEvents.delete(eventPromise)
         }
       }
     }
   }
 
-  noble.on('stateChange', async (state) => {
+  const handleStateChange = async (state: AdapterState) => {
     logger.debug(`BLE adapter state change: ${state}`, { state })
     if (state === 'poweredOn') {
       try {
@@ -51,27 +74,29 @@ export const scanner: Scanner = async (params): Promise<void> => {
     } else if (state === 'poweredOff') {
       await noble.stopScanningAsync()
     }
-  })
+  }
 
-  noble.on('discover', handleDiscover)
+  const start: Scanner['start'] = async () => {
+    logger.info('Starting the BLE scanner...')
+    try {
+      noble.on('stateChange', handleStateChange)
+      noble.on('discover', handleDiscover)
+      await noble.waitForPoweredOnAsync()
+    } catch (error) {
+      logger.error('BLE discovery failed', { error })
+      noble.off('stateChange', handleStateChange)
+      noble.off('discover', handleDiscover)
+      await noble.stopScanningAsync()
+    }
+  }
 
-  try {
-    await noble.waitForPoweredOnAsync()
-  } catch (error) {
-    logger.error('BLE discovery failed', { error })
+  const close: Scanner['close'] = async () => {
+    logger.info('Closing the BLE scanner...')
+    noble.off('stateChange', handleStateChange)
+    noble.off('discover', handleDiscover)
     await noble.stopScanningAsync()
-  }
-}
-
-const readManufacturerData = (peripheral: Peripheral) => {
-  const manufacturerData = peripheral.advertisement.manufacturerData
-  return manufacturerData.slice(2)
-}
-
-const isRuuviDevice = (peripheral: Peripheral): boolean => {
-  if (!peripheral.advertisement.manufacturerData || peripheral.advertisement.manufacturerData.length < 2) {
-    return false
+    await Promise.allSettled(inFlightEvents)
   }
 
-  return peripheral.advertisement.manufacturerData.readUInt16LE(0) === RUUVI_COMPANY_CODE
+  return { start, close }
 }

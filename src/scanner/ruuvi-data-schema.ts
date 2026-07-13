@@ -21,43 +21,6 @@ const CO2_MAX = 2300
 const CO2_MIN = 420
 const CO2_SCALE = AQI_MAX / (CO2_MAX - CO2_MIN) // ≈ 0.05319
 
-// Not available is signified by all bits set.
-const macCodec = (byteLength: number) => {
-  const sentinel = 2 ** (byteLength * 8) - 1
-  return z.codec(z.number().min(0).max(sentinel), z.string().optional(), {
-    decode: (value) =>
-      value === sentinel
-        ? undefined
-        : (value.toString(16).toUpperCase().match(/.{2}/g)?.join(':') ?? value.toString(16)),
-    encode: (value) => (isNil(value) ? sentinel : parseInt(value.split(':').join(''), 16)),
-  })
-}
-
-const txPowerCodec = z.codec(z.number().min(0).max(31), z.number().min(-40).max(22).optional(), {
-  decode: (value) => (value === 31 ? undefined : value * 2 - 40),
-  encode: (value) => (isNil(value) ? 31 : (value + 40) / 2),
-})
-
-const voltageCodec = z.codec(z.number().min(0).max(2047), z.number().min(1.6).max(3.647).optional(), {
-  decode: (v) => (v === 2047 ? undefined : (1600 + v) / 1000),
-  encode: (v) => (isNil(v) ? 2047 : v * 1000 - 1600),
-})
-
-const powerInfoTransform = <T extends { powerInfo: number | undefined }>(
-  value: T
-): Omit<T, 'powerInfo'> & { txPower: number | undefined; voltage: number | undefined } => {
-  const { powerInfo, ...rest } = value
-
-  if (isNil(powerInfo)) {
-    return { ...rest, txPower: undefined, voltage: undefined }
-  }
-
-  const txPower = txPowerCodec.decode(powerInfo & 0x1f)
-  const voltage = voltageCodec.decode(powerInfo >> 5)
-
-  return { ...rest, txPower: toPrecision(0)(txPower), voltage: toPrecision(4)(voltage) }
-}
-
 const toPrecision = (precision: number) => (v: number | undefined) => {
   if (isNil(v)) {
     return undefined
@@ -76,6 +39,19 @@ const temperatureTransform = (val: number | undefined): number | undefined => (i
 const humidityTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : val * 0.0025)
 const pressureTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : val + 50_000)
 const accelerationTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : val / 1000)
+const txPowerTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : val * 2 - 40)
+const voltageTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : (1600 + val) / 1000)
+const macAddressTransform =
+  (byteLength: number) =>
+  (val: number | undefined): string | undefined =>
+    isNil(val)
+      ? undefined
+      : (val
+          .toString(16)
+          .toUpperCase()
+          .padStart(byteLength * 2, '0')
+          .match(/.{2}/g)
+          ?.join(':') ?? val.toString(16))
 
 /**
  * https://docs.ruuvi.com/ruuvi-air-firmware/ruuvi-indoor-air-quality-score-iaqs
@@ -99,7 +75,7 @@ const iaqsTransform = <T extends { 'pm2.5': number | undefined; co2: number | un
 }
 
 const baseSchema = z.object({
-  address: macCodec(6),
+  address: byte().length(48).unsigned().sentinel(0xffffffffffff).transform(macAddressTransform(6)),
   temperature: byte().length(16).signed().sentinel(0x8000).transform(temperatureTransform).transform(toPrecision(3)),
   humidity: byte().length(16).unsigned().sentinel(0xffff).transform(humidityTransform).transform(toPrecision(4)),
   pressure: byte().length(16).unsigned().sentinel(0xffff).transform(pressureTransform),
@@ -109,33 +85,18 @@ const baseSchema = z.object({
  * Ruuvi data format 5 schema
  * https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2
  */
-const ruuviTagSchema = z
-  .object({
-    ...baseSchema.shape,
-    dataFormat: z.literal(DATA_FORMAT_5),
-    accelerationX: byte()
-      .length(16)
-      .signed()
-      .sentinel(0x8000)
-      .transform(accelerationTransform)
-      .transform(toPrecision(4)),
-    accelerationY: byte()
-      .length(16)
-      .signed()
-      .sentinel(0x8000)
-      .transform(accelerationTransform)
-      .transform(toPrecision(4)),
-    accelerationZ: byte()
-      .length(16)
-      .signed()
-      .sentinel(0x8000)
-      .transform(accelerationTransform)
-      .transform(toPrecision(4)),
-    powerInfo: byte().length(16).unsigned().sentinel(0xffff),
-    movement: byte().length(8).unsigned().sentinel(0xff),
-    sequence: byte().length(16).unsigned().sentinel(0xffff),
-  })
-  .transform(powerInfoTransform)
+const ruuviTagSchema = z.object({
+  ...baseSchema.shape,
+  dataFormat: z.literal(DATA_FORMAT_5),
+  accelerationX: byte().length(16).signed().sentinel(0x8000).transform(accelerationTransform).transform(toPrecision(4)),
+  accelerationY: byte().length(16).signed().sentinel(0x8000).transform(accelerationTransform).transform(toPrecision(4)),
+  accelerationZ: byte().length(16).signed().sentinel(0x8000).transform(accelerationTransform).transform(toPrecision(4)),
+  // 16-bit powerInfo packs an 11-bit voltage + 5-bit txPower; split at parse time (see parseRuuviTagFields)
+  txPower: byte().length(5).unsigned().sentinel(0x1f).transform(txPowerTransform).transform(toPrecision(0)),
+  voltage: byte().length(11).unsigned().sentinel(0x7ff).transform(voltageTransform).transform(toPrecision(4)),
+  movement: byte().length(8).unsigned().sentinel(0xff),
+  sequence: byte().length(16).unsigned().sentinel(0xffff),
+})
 
 const ruuviAirBaseSchema = z.object({
   ...baseSchema.shape,
@@ -155,7 +116,7 @@ const ruuviAirSchema = z
   .object({
     ...ruuviAirBaseSchema.shape,
     dataFormat: z.literal(DATA_FORMAT_6),
-    address: macCodec(3),
+    address: byte().length(24).unsigned().sentinel(0xffffff).transform(macAddressTransform(3)),
     luminosity: byte().length(8).unsigned().sentinel(0xff).transform(luminosityTransform).transform(toPrecision(2)),
     // No reserved "not available" value for this field, unlike E1's sequence
     sequence: byte().length(8).unsigned(),
@@ -170,7 +131,7 @@ const ruuviAirExtendedSchema = z
   .object({
     ...ruuviAirBaseSchema.shape,
     dataFormat: z.literal(DATA_FORMAT_E1),
-    address: macCodec(6),
+    address: byte().length(48).unsigned().sentinel(0xffffffffffff).transform(macAddressTransform(6)),
     'pm1.0': byte().length(16).unsigned().sentinel(0xffff).transform(pmTransform).transform(toPrecision(1)),
     'pm4.0': byte().length(16).unsigned().sentinel(0xffff).transform(pmTransform).transform(toPrecision(1)),
     'pm10.0': byte().length(16).unsigned().sentinel(0xffff).transform(pmTransform).transform(toPrecision(1)),
@@ -184,18 +145,24 @@ const ruuviAirExtendedSchema = z
   })
   .transform(iaqsTransform)
 
-const parseRuuviTagFields = (data: Buffer): Omit<z.input<typeof ruuviTagSchema>, 'dataFormat'> => ({
-  temperature: data.readIntBE(1, 2),
-  humidity: data.readUIntBE(3, 2),
-  pressure: data.readUIntBE(5, 2),
-  accelerationX: data.readIntBE(7, 2),
-  accelerationY: data.readIntBE(9, 2),
-  accelerationZ: data.readIntBE(11, 2),
-  powerInfo: data.readUIntBE(13, 2),
-  movement: data.readUIntBE(15, 1),
-  sequence: data.readUIntBE(16, 2),
-  address: data.readUIntBE(18, 6),
-})
+const parseRuuviTagFields = (data: Buffer): Omit<z.input<typeof ruuviTagSchema>, 'dataFormat'> => {
+  // Packed 16-bit value: 11-bit voltage + 5-bit txPower
+  const powerInfo = data.readUIntBE(13, 2)
+
+  return {
+    temperature: data.readIntBE(1, 2),
+    humidity: data.readUIntBE(3, 2),
+    pressure: data.readUIntBE(5, 2),
+    accelerationX: data.readIntBE(7, 2),
+    accelerationY: data.readIntBE(9, 2),
+    accelerationZ: data.readIntBE(11, 2),
+    txPower: powerInfo & 0x1f,
+    voltage: powerInfo >> 5,
+    movement: data.readUIntBE(15, 1),
+    sequence: data.readUIntBE(16, 2),
+    address: data.readUIntBE(18, 6),
+  }
+}
 
 const parseRuuviAirFlags = (flags: number) => {
   const calibration = (flags & 0b0000_0001) === 1

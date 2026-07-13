@@ -98,6 +98,12 @@ describe('Ruuvi data schema', () => {
         })
       )
     })
+
+    test('should format an address whose first byte is below 0x10 with its leading zero preserved', ({ expect }) => {
+      const data = Buffer.from('0512FC5394C37C0004FFFC040CAC364200CD0A8334C88F4F', 'hex')
+      const result = RuuviDataSchema.safeParse(data)
+      expect(result.data).toEqual(expect.objectContaining({ address: '0A:83:34:C8:8F:4F' }))
+    })
   })
 
   describe('with data format 6', () => {

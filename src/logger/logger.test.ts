@@ -1,27 +1,9 @@
-import { defineConfig, setConfig } from '@config/config'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { afterAll, beforeAll, describe, test } from 'vitest'
+import { existsSync, readFileSync } from 'node:fs'
+import { describe, test } from 'vitest'
+import { testLogFile } from '../testing/test-config'
 import { getLogger } from './logger'
 
 describe('logger', () => {
-  const logDir: string = mkdtempSync(join(tmpdir(), 'ruuvi-logger-test-'))
-  const logFile = join(logDir, 'test.log')
-
-  beforeAll(() => {
-    setConfig(
-      defineConfig({
-        influxdb: { org: 'dummy', bucket: 'dummy', connection: { url: 'http://dummy', token: 'dummy' } },
-        log: { level: 'debug', file: logFile },
-      })
-    )
-  })
-
-  afterAll(async () => {
-    rmSync(logDir, { recursive: true, force: true })
-  })
-
   test('redacts sensitive fields but keeps non-sensitive ones in the log file', async ({ expect }) => {
     const logger = await getLogger(['ruuvi', 'test'])
 
@@ -31,7 +13,7 @@ describe('logger', () => {
       address: 'AA:BB:CC:DD:EE:FF',
     })
 
-    const readLogFile = () => (existsSync(logFile) ? readFileSync(logFile, 'utf8') : '')
+    const readLogFile = () => (existsSync(testLogFile) ? readFileSync(testLogFile, 'utf8') : '')
 
     /* the file sink buffers writes, so poll until the write has landed instead of reading immediately */
     await expect.poll(readLogFile).toContain('ok')

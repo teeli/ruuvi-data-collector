@@ -26,6 +26,4 @@ const loadConfig = memoize(async (): Promise<Config> => {
   return defineConfig(rawConfig)
 })
 
-export const setConfig = (config: Config): void => loadConfig.set(Promise.resolve(config))
-
 export const getConfig = (): Promise<Config> => loadConfig.get()

@@ -1,8 +1,6 @@
-import { defineConfig, setConfig } from '@config/config'
+import { vi } from 'vitest'
 
-setConfig(
-  defineConfig({
-    aliases: { 'mock-address': 'mock-alias' },
-    influxdb: { bucket: 'dummy', org: 'dummy', connection: { url: 'http://dummy', token: 'dummy' } },
-  })
-)
+vi.mock('../../config', async () => {
+  const { testConfig } = await import('./test-config')
+  return { default: testConfig }
+})

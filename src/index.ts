@@ -8,6 +8,7 @@ logger.info('Starting Ruuvi data collector...')
 
 const writer = await createWriter({ client: influxDbClient })
 const scanner = await createScanner({ onEvent: writer.handleEvent })
+await scanner.start()
 
 let shuttingDown = false
 const shutdown = async (signal: string): Promise<void> => {
@@ -31,5 +32,3 @@ const shutdown = async (signal: string): Promise<void> => {
 
 process.on('SIGINT', () => void shutdown('SIGINT'))
 process.on('SIGTERM', () => void shutdown('SIGTERM'))
-
-await scanner.start()

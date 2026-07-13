@@ -84,6 +84,8 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
       await noble.waitForPoweredOnAsync()
     } catch (error) {
       logger.error('BLE discovery failed', { error })
+      noble.off('stateChange', handleStateChange)
+      noble.off('discover', handleDiscover)
       await noble.stopScanningAsync()
     }
   }

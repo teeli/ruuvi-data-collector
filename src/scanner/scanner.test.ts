@@ -62,6 +62,17 @@ describe('scanner', () => {
     expect(nobleMock.stopScanningAsync).toHaveBeenCalledTimes(1)
   })
 
+  test<CustomContext>('should remove listeners when powering on fails', async ({ expect }) => {
+    nobleMock.waitForPoweredOnAsync.mockRejectedValueOnce(new Error('mock error'))
+
+    const failedScanner = await createScanner({ onEvent })
+    await failedScanner.start()
+
+    expect(nobleMock.off).toHaveBeenCalledWith('stateChange', expect.any(Function))
+    expect(nobleMock.off).toHaveBeenCalledWith('discover', expect.any(Function))
+    expect(nobleMock.stopScanningAsync).toHaveBeenCalledTimes(1)
+  })
+
   test<CustomContext>('should stop scanning when close is called', async ({ expect, stateChange, scanner }) => {
     stateChange('poweredOn')
 

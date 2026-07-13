@@ -41,8 +41,17 @@ const pressureTransform = (val: number | undefined): number | undefined => (isNi
 const accelerationTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : val / 1000)
 const txPowerTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : val * 2 - 40)
 const voltageTransform = (val: number | undefined): number | undefined => (isNil(val) ? undefined : (1600 + val) / 1000)
-const macAddressTransform = (val: number | undefined): string | undefined =>
-  isNil(val) ? undefined : (val.toString(16).toUpperCase().match(/.{2}/g)?.join(':') ?? val.toString(16))
+const macAddressTransform =
+  (byteLength: number) =>
+  (val: number | undefined): string | undefined =>
+    isNil(val)
+      ? undefined
+      : (val
+          .toString(16)
+          .toUpperCase()
+          .padStart(byteLength * 2, '0')
+          .match(/.{2}/g)
+          ?.join(':') ?? val.toString(16))
 
 /**
  * https://docs.ruuvi.com/ruuvi-air-firmware/ruuvi-indoor-air-quality-score-iaqs
@@ -66,7 +75,7 @@ const iaqsTransform = <T extends { 'pm2.5': number | undefined; co2: number | un
 }
 
 const baseSchema = z.object({
-  address: byte().length(48).unsigned().sentinel(0xffffffffffff).transform(macAddressTransform),
+  address: byte().length(48).unsigned().sentinel(0xffffffffffff).transform(macAddressTransform(6)),
   temperature: byte().length(16).signed().sentinel(0x8000).transform(temperatureTransform).transform(toPrecision(3)),
   humidity: byte().length(16).unsigned().sentinel(0xffff).transform(humidityTransform).transform(toPrecision(4)),
   pressure: byte().length(16).unsigned().sentinel(0xffff).transform(pressureTransform),
@@ -107,7 +116,7 @@ const ruuviAirSchema = z
   .object({
     ...ruuviAirBaseSchema.shape,
     dataFormat: z.literal(DATA_FORMAT_6),
-    address: byte().length(24).unsigned().sentinel(0xffffff).transform(macAddressTransform),
+    address: byte().length(24).unsigned().sentinel(0xffffff).transform(macAddressTransform(3)),
     luminosity: byte().length(8).unsigned().sentinel(0xff).transform(luminosityTransform).transform(toPrecision(2)),
     // No reserved "not available" value for this field, unlike E1's sequence
     sequence: byte().length(8).unsigned(),
@@ -122,7 +131,7 @@ const ruuviAirExtendedSchema = z
   .object({
     ...ruuviAirBaseSchema.shape,
     dataFormat: z.literal(DATA_FORMAT_E1),
-    address: byte().length(48).unsigned().sentinel(0xffffffffffff).transform(macAddressTransform),
+    address: byte().length(48).unsigned().sentinel(0xffffffffffff).transform(macAddressTransform(6)),
     'pm1.0': byte().length(16).unsigned().sentinel(0xffff).transform(pmTransform).transform(toPrecision(1)),
     'pm4.0': byte().length(16).unsigned().sentinel(0xffff).transform(pmTransform).transform(toPrecision(1)),
     'pm10.0': byte().length(16).unsigned().sentinel(0xffff).transform(pmTransform).transform(toPrecision(1)),

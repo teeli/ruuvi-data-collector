@@ -9,11 +9,13 @@ const tagFields = ['dataFormat', 'address']
 const ignoreFields = ['calibration']
 const lastSequence: Record<string, number | undefined> = {}
 
-type HandleEvent = (event: ScannerEvent) => Promise<void>
-type CloseWriter = () => Promise<void>
-type InfluxDbWriterConfig = { client: InfluxDB }
-export type InfluxDBWriter = { handleEvent: HandleEvent; close: CloseWriter }
-type CreateWriter = (config: InfluxDbWriterConfig) => Promise<InfluxDBWriter>
+export interface Writer {
+  handleEvent: (event: ScannerEvent) => Promise<void>
+  close: () => Promise<void>
+}
+
+type WriterConfig = { client: InfluxDB }
+type CreateWriter = (writerConfig: WriterConfig) => Promise<Writer>
 
 export const createWriter: CreateWriter = async ({ client }) => {
   const logger = await getLogger(['ruuvi', 'writer'])
@@ -22,7 +24,7 @@ export const createWriter: CreateWriter = async ({ client }) => {
   const config = await getConfig()
   const influxDb = client.getWriteApi(config.influxdb.org, config.influxdb.bucket, 'ns', config.influxdb.write)
 
-  const handleEvent: HandleEvent = async (event) => {
+  const handleEvent: Writer['handleEvent'] = async (event) => {
     const { address, sequence } = event.data
 
     if (isNil(address)) {
@@ -56,7 +58,7 @@ export const createWriter: CreateWriter = async ({ client }) => {
     logger.debug(`Wrote Point to InfluxDB: ${point.toLineProtocol(influxDb)}`)
   }
 
-  const close: CloseWriter = async () => {
+  const close: Writer['close'] = async () => {
     logger.info('Closing InfluxDB writer...')
     await influxDb.close()
   }

@@ -6,20 +6,21 @@ import noble from '@stoprocent/noble'
 
 const RUUVI_COMPANY_CODE = 0x0499
 
-const ruuviDevices = new Map<string, Peripheral>()
+export type ScannerEvent = { metadata: { timestamp: Date }; data: RuuviData }
 
-type ScannerEventMetadata = { timestamp: Date }
-export type ScannerEvent = { metadata: ScannerEventMetadata; data: RuuviData }
-type ScannerParams = { onEvent: (event: ScannerEvent) => Promise<void> }
-type StartScanner = () => Promise<void>
-type CloseScanner = () => Promise<void>
-export type Scanner = { start: StartScanner; close: CloseScanner }
-type CreateScanner = (params: ScannerParams) => Promise<Scanner>
+export interface Scanner {
+  start: () => Promise<void>
+  close: () => Promise<void>
+}
 
-export const createScanner: CreateScanner = async (params) => {
+type ScannerConfig = { onEvent: (event: ScannerEvent) => Promise<void> }
+type CreateScanner = (scannerConfig: ScannerConfig) => Promise<Scanner>
+
+export const createScanner: CreateScanner = async ({ onEvent }) => {
   const logger = await getLogger(['ruuvi', 'scanner'])
   logger.debug(`Initializing scanner...`)
 
+  const ruuviDevices = new Map<string, Peripheral>()
   const inFlightEvents = new Set<Promise<void>>()
 
   const readManufacturerData = (peripheral: Peripheral) => {
@@ -49,7 +50,7 @@ export const createScanner: CreateScanner = async (params) => {
       if (success) {
         const metadata = { timestamp: new Date(), eventType: 'RuuviTag' }
         try {
-          const eventPromise = params.onEvent({ data, metadata })
+          const eventPromise = onEvent({ data, metadata })
           inFlightEvents.add(eventPromise)
           await eventPromise
           inFlightEvents.delete(eventPromise)
@@ -74,7 +75,7 @@ export const createScanner: CreateScanner = async (params) => {
     }
   }
 
-  const start: StartScanner = async () => {
+  const start: Scanner['start'] = async () => {
     logger.info('Starting the BLE scanner...')
     try {
       noble.on('stateChange', handleStateChange)
@@ -86,7 +87,7 @@ export const createScanner: CreateScanner = async (params) => {
     }
   }
 
-  const close: CloseScanner = async () => {
+  const close: Scanner['close'] = async () => {
     logger.info('Closing the BLE scanner...')
     noble.off('stateChange', handleStateChange)
     noble.off('discover', handleDiscover)

@@ -9,6 +9,7 @@ import {
   getTextFormatter,
 } from '@logtape/logtape'
 import { redactByField } from '@logtape/redaction'
+import { memoize } from '@util/memoize'
 
 /**
  * Same as @logtape/redaction's DEFAULT_REDACT_FIELDS, minus /address/i: the
@@ -30,9 +31,7 @@ const SENSITIVE_FIELD_PATTERNS = [
   /phone/i,
 ]
 
-let configPromise: Promise<void> | undefined
-
-const configureLogger = async (): Promise<void> => {
+const configureLogger = memoize(async (): Promise<void> => {
   const config = await getConfig()
 
   const ansiColorFormatter = getAnsiColorFormatter({
@@ -58,14 +57,10 @@ const configureLogger = async (): Promise<void> => {
       { category: 'ruuvi', lowestLevel: config.log.level, sinks: ['console', 'file'] },
     ],
   })
-}
+})
 
 export const getLogger = async (category: string | readonly string[]): Promise<Logger> => {
-  if (!configPromise) {
-    configPromise = configureLogger()
-  }
-
-  await configPromise
+  await configureLogger()
 
   return getLogtapeLogger(category)
 }

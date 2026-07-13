@@ -3,10 +3,10 @@ import { closeLogger, getLogger } from '@logger/logger'
 import { createScanner } from '@scanner/scanner'
 import { createWriter } from '@writers/influxdb-writer'
 
-const [logger, influxDbClient] = await Promise.all([getLogger(['ruuvi']), createInfluxDbClient()])
+const logger = await getLogger(['ruuvi'])
 logger.info('Starting Ruuvi data collector...')
 
-const writer = await createWriter({ client: influxDbClient })
+const writer = await createWriter({ client: await createInfluxDbClient() })
 const scanner = await createScanner({ onEvent: writer.handleEvent })
 await scanner.start()
 

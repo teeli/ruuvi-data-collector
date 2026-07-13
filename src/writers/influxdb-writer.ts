@@ -17,7 +17,7 @@ type WriterConfig = { client: InfluxDB }
 type CreateWriter = (writerConfig: WriterConfig) => Promise<Writer>
 
 export const createWriter: CreateWriter = async ({ client }) => {
-  const logger = await getLogger(['ruuvi', 'writer'])
+  const logger = await getLogger(['ruuvi', 'influxdb-writer'])
   logger.info(`Initializing InfluxDB writer...`)
 
   const config = await getConfig()
@@ -25,10 +25,11 @@ export const createWriter: CreateWriter = async ({ client }) => {
   const lastSequence: Record<string, number | undefined> = {}
 
   const handleEvent: Writer['handleEvent'] = async (event) => {
+    logger.debug('Received event (address: {event.data.address}, sequence: {event.data.sequence})', { event })
     const { address, sequence } = event.data
 
     if (isNil(address)) {
-      logger.warn('Skipping event with no address', { event })
+      logger.warn('Skipping event with no address: {event}', { event })
       return
     }
 
@@ -55,7 +56,7 @@ export const createWriter: CreateWriter = async ({ client }) => {
     }
 
     influxDb.writePoint(point)
-    logger.debug(`Wrote Point to InfluxDB: ${point.toLineProtocol(influxDb)}`)
+    logger.debug(`Wrote Point to InfluxDB: {point}`, { point: point.toLineProtocol(influxDb) })
   }
 
   const close: Writer['close'] = async () => {

@@ -35,7 +35,7 @@ describe('influxdb-writer', () => {
     await writer.handleEvent({
       data: {
         dataFormat: '5',
-        address: 'mock-address',
+        address: 'AA:BB:CC:DD:EE:FF',
         txPower: 1,
         voltage: 2,
         sequence: 3,
@@ -53,7 +53,7 @@ describe('influxdb-writer', () => {
     expect(writePointMock).toHaveBeenCalledTimes(1)
     expect(writePointMock).toHaveBeenCalledWith({
       name: 'ruuvi_measurement',
-      tags: { dataFormat: '5', address: 'mock-address', alias: 'mock-alias' },
+      tags: { dataFormat: '5', address: 'AA:BB:CC:DD:EE:FF', alias: 'mock-alias' },
       fields: {
         txPower: '1',
         voltage: '2',
@@ -66,6 +66,35 @@ describe('influxdb-writer', () => {
         temperature: '9',
         movement: '10',
       },
+    })
+  })
+  test('should resolve a short-form (ruuvi air) address to the alias of its full-form suffix match', async ({
+    expect,
+  }) => {
+    await writer.handleEvent({
+      data: {
+        dataFormat: '6',
+        address: 'DD:EE:FF',
+        humidity: undefined,
+        pressure: undefined,
+        temperature: undefined,
+        luminosity: undefined,
+        'pm2.5': undefined,
+        calibration: false,
+        co2: 1,
+        nox: 2,
+        voc: 3,
+        sequence: 6,
+        iaqs: undefined,
+      },
+      metadata: { timestamp: new Date() },
+    })
+
+    expect(writePointMock).toHaveBeenCalledTimes(1)
+    expect(writePointMock).toHaveBeenCalledWith({
+      name: 'ruuvi_measurement',
+      tags: { dataFormat: '6', address: 'DD:EE:FF', alias: 'mock-alias' },
+      fields: { co2: '1', nox: '2', voc: '3', sequence: '6' },
     })
   })
   test('should filter undefined values', async ({ expect }) => {

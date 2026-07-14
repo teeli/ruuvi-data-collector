@@ -13,13 +13,13 @@ describe('console-writer', () => {
     vi.restoreAllMocks()
   })
 
-  test('prints the aliased address and measurements for a known device', ({ expect }) => {
+  test('prints the aliased address and measurements for a known device', async ({ expect }) => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
 
-    writer.handleEvent({
+    await writer.handleEvent({
       data: {
         dataFormat: '5',
-        address: 'mock-address',
+        address: 'AA:BB:CC:DD:EE:FF',
         txPower: 1,
         voltage: 2,
         sequence: 3,

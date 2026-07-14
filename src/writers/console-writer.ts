@@ -1,5 +1,5 @@
 import type { ScannerEvent } from '@scanner/scanner'
-import { getConfig } from '@config/config'
+import { resolveAlias } from '@config/resolve-alias'
 
 const fixedLength = (str: string, len: number = 15, alignRight: boolean = false) => {
   const s = str.substring(0, len)
@@ -9,13 +9,12 @@ const fixedLength = (str: string, len: number = 15, alignRight: boolean = false)
   return s.padEnd(len, ' ')
 }
 
-export const createConsoleWriter = async (): Promise<{ handleEvent: (event: ScannerEvent) => void }> => {
-  const config = await getConfig()
-
-  const handleEvent = (event: ScannerEvent): void => {
+export const createConsoleWriter = async (): Promise<{ handleEvent: (event: ScannerEvent) => Promise<void> }> => {
+  const handleEvent = async (event: ScannerEvent): Promise<void> => {
     const address = event.data.address ?? 'unknown'
+    const alias = await resolveAlias(address)
     const columns = [
-      fixedLength(config?.aliases?.[address] ?? address, 20),
+      fixedLength(alias ?? address, 20),
       fixedLength(event.data.dataFormat, 3),
       fixedLength(`${event.data?.temperature?.toFixed(2)}°C`, 10, true),
       fixedLength(`${event.data?.humidity?.toFixed(2)}%`, 10, true),

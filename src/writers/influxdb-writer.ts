@@ -1,4 +1,5 @@
 import { getConfig } from '@config/config'
+import { resolveAlias } from '@config/resolve-alias'
 import type { InfluxDB } from '@influxdata/influxdb-client'
 import { Point } from '@influxdata/influxdb-client'
 import { getLogger } from '@logger/logger'
@@ -51,8 +52,9 @@ export const createWriter: CreateWriter = async ({ client }) => {
       return point.floatField(key, value)
     }, new Point('ruuvi_measurement'))
 
-    if (config?.aliases?.[address]) {
-      point.tag('alias', config?.aliases?.[address])
+    const alias = await resolveAlias(address)
+    if (alias) {
+      point.tag('alias', alias)
     }
 
     influxDb.writePoint(point)

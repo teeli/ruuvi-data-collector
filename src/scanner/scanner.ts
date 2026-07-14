@@ -1,3 +1,4 @@
+import { resolveAlias } from '@config/resolve-alias'
 import { getLogger } from '@logger/logger'
 import type { RuuviData } from '@scanner/ruuvi-data-schema'
 import { RuuviDataSchema } from '@scanner/ruuvi-data-schema'
@@ -38,15 +39,21 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
 
   const handleDiscover = async (peripheral: Peripheral): Promise<void> => {
     if (isRuuviDevice(peripheral)) {
-      if (!ruuviDevices.has(peripheral.id) && peripheral.connectable) {
-        logger.info(`Found a new Ruuvi device: {peripheral.advertisement.localName}`, { peripheral })
-        ruuviDevices.set(peripheral.id, peripheral)
-      }
-
       const { data, success, error } = RuuviDataSchema.safeParse(readManufacturerData(peripheral))
       if (error) {
         logger.warn('Failed to parse manufacturer data: {error}', error)
       }
+
+      if (!ruuviDevices.has(peripheral.id)) {
+        ruuviDevices.set(peripheral.id, peripheral)
+        const address = data?.address ?? peripheral.address?.toUpperCase()
+        const alias = await resolveAlias(address)
+        logger.info(
+          `Found a new Ruuvi device: (address: {address}, name: {peripheral.advertisement.localName}, alias: {alias})`,
+          { address, alias, peripheral }
+        )
+      }
+
       if (success) {
         const metadata = { timestamp: new Date(), eventType: 'RuuviTag' }
         const eventPromise = onEvent({ data, metadata })

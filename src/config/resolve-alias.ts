@@ -6,10 +6,10 @@ import { getConfig } from '@config/config'
  * (https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-6), so a short
  * address with no exact alias match falls back to the suffix of any full-form alias key.
  */
-export const resolveAlias = async (address: string): Promise<string | undefined> => {
+export const resolveAlias = async (address: string | undefined): Promise<string | undefined> => {
   const { aliases } = await getConfig()
 
-  if (!aliases) {
+  if (!aliases || !address) {
     return undefined
   }
 

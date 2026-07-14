@@ -59,13 +59,7 @@ export const assertLogFileWritable = async (logFile: string): Promise<void> => {
 const configureLogger = memoize(async (): Promise<void> => {
   const config = await getConfig()
 
-  const ansiColorFormatter = getAnsiColorFormatter({
-    timestamp: 'rfc3339',
-    timestampColor: 'green',
-    timestampStyle: null,
-    level: 'FULL',
-    levelStyle: 'bold',
-  })
+  const ansiColorFormatter = getAnsiColorFormatter({ timestamp: 'none', level: 'FULL', levelStyle: 'bold' })
 
   await assertLogFileWritable(config.log.file)
 

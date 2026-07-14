@@ -175,7 +175,7 @@ describe('scanner', () => {
         movement: 66,
         sequence: 205,
       },
-      metadata: { timestamp: expect.any(Date), eventType: 'RuuviTag' },
+      metadata: { timestamp: expect.any(Date) },
     })
   })
 

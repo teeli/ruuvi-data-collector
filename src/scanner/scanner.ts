@@ -55,7 +55,7 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
       }
 
       if (success) {
-        const metadata = { timestamp: new Date(), eventType: 'RuuviTag' }
+        const metadata = { timestamp: new Date() }
         const eventPromise = onEvent({ data, metadata })
         inFlightEvents.add(eventPromise)
         try {

@@ -50,6 +50,9 @@
     "*.md": [
       "prettier --write",
       "markdownlint --fix"
+    ],
+    "*.{yml,yaml}": [
+      "prettier --write"
     ]
   }
 }

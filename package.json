@@ -12,11 +12,13 @@
     "config:generate": "bun src/cli/commands/config-generate.ts",
     "watch": "bun --watch src/index.ts",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "lint:md": "markdownlint .",
     "lint:md:fix": "markdownlint --fix .",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepare": "husky"
   },
   "dependencies": {

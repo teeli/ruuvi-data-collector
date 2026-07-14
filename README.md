@@ -35,10 +35,12 @@ To run Ruuvi Data Collector as a systemd service, see
 ## Development
 
 - `bun run watch` — run with file watching
-- `bun run test` — run tests
+- `bun run test` — run tests once
+- `bun run test:watch` — run tests in watch mode
 - `bun run lint` / `bun run lint:fix` — lint TypeScript
 - `bun run lint:md` / `bun run lint:md:fix` — lint markdown
 - `bun run format` — format with Prettier
+- `bun run format:check` — check formatting without writing
 - `bun run compile` — typecheck
 
 ### Development Environment Setup
@@ -48,3 +50,10 @@ To run Ruuvi Data Collector as a systemd service, see
    `docker compose -f influxdb/docker-compose.yml up -d`
 3. Follow [Setup](#setup) to generate `config.ts`, pointing it at the local
    InfluxDB instance
+
+### Continuous Integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint, markdown lint, format
+check, typecheck, and tests on every pull request and push to `main`. All checks
+must pass before a pull request can merge, and the Bun version used in CI is
+pinned in [`.bun-version`](.bun-version).

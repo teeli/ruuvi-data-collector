@@ -18,11 +18,13 @@ Always keep documentation (`CLAUDE.md`, `README.md`) up to date.
 - `bun run start` — run the app (entry: `src/index.ts`)
 - `bun run watch` — run with file watching
 - `bun run compile` — typecheck only (`tsc --noEmit`, no output emitted)
-- `bun run test` — run vitest; pass a path to run a single test file (e.g.
+- `bun run test` — run vitest once; pass a path to run a single test file (e.g.
   `bun run test src/scanner/scanner.test.ts`)
+- `bun run test:watch` — run vitest in watch mode
 - `bun run lint` / `bun run lint:fix` — oxlint
 - `bun run lint:md` / `bun run lint:md:fix` — markdown lint
 - `bun run format` — prettier --write .
+- `bun run format:check` — prettier --check .
 - `bun run config:generate` — scaffold `config.ts` at repo root from
   `src/cli/assets/config-template.ts`
 
@@ -37,6 +39,10 @@ connection, bucket/org, device aliases, log settings), generated via
 
 Always use strict/exact versions in `package.json` (no `^` or `~` ranges) for
 both `dependencies` and `devDependencies`.
+
+Bun version is pinned in `.bun-version` at the repo root (single source of
+truth, read by `oven-sh/setup-bun` in CI via `bun-version-file`). Bump it there
+when upgrading Bun locally so CI stays in sync.
 
 ## Code style
 
@@ -113,8 +119,10 @@ both `dependencies` and `devDependencies`.
   implementation. Use clear branch names with a prefix such as `feat/`, `fix/`,
   or `chore/`
 - Never commit directly to `main` — GitHub blocks it.
-- No CI currently runs on push/PR — run `bun run lint` and `bun run test`
-  locally before considering a change done.
+- GitHub Actions (`.github/workflows/ci.yml`) runs lint, markdown lint, format
+  check, typecheck, and tests on every PR and push to `main`; all must pass
+  before a PR can merge. Still run `bun run lint` and `bun run test` locally
+  before considering a change done — don't rely on CI to catch it first.
 - Code is merged to `main` via Github pull requests. Prefer fast forward merges
   or merge commits over squash. Pull request title should match the branch name
   and the description should contain specific details about the change.

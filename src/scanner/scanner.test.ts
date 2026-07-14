@@ -1,3 +1,4 @@
+import { getLogger } from '@logger/logger'
 import noble from '@stoprocent/noble'
 import type { TestContext } from 'vitest'
 import { afterEach, beforeEach, describe, test, vi } from 'vitest'
@@ -7,12 +8,22 @@ import { createScanner } from './scanner'
 vi.mock('@stoprocent/noble')
 const nobleMock = vi.mocked(noble)
 
+type LogFn = (message: string, properties?: Record<string, unknown>) => void
+
+const { loggerMock } = vi.hoisted(() => ({
+  loggerMock: { info: vi.fn<LogFn>(), warn: vi.fn<LogFn>(), error: vi.fn<LogFn>(), debug: vi.fn<LogFn>() },
+}))
+vi.mock('@logger/logger', () => ({ getLogger: vi.fn<typeof getLogger>() }))
+const getLoggerMock = vi.mocked(getLogger)
+
 const onEvent = vi.fn<(event: ScannerEvent) => Promise<void>>()
 
 type CustomContext = TestContext & { discover: Function; stateChange: Function; scanner: Scanner }
 
 describe('scanner', () => {
   beforeEach<CustomContext>(async (context) => {
+    getLoggerMock.mockResolvedValue(loggerMock as unknown as Awaited<ReturnType<typeof getLogger>>)
+
     nobleMock.on.mockImplementation((event, listener) => {
       if (event === 'stateChange') {
         context.stateChange = listener
@@ -99,6 +110,7 @@ describe('scanner', () => {
     )
 
     const discoverPromise = discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
+    await vi.waitFor(() => expect(onEvent).toHaveBeenCalled())
 
     let closed = false
     const closePromise = scanner.close().then(() => {
@@ -131,6 +143,8 @@ describe('scanner', () => {
     )
 
     const discoverPromise = discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
+    await vi.waitFor(() => expect(onEvent).toHaveBeenCalled())
+
     const closePromise = scanner.close()
 
     rejectEvent(new Error('write failed'))
@@ -141,8 +155,8 @@ describe('scanner', () => {
 
   test<CustomContext>('should call onEvent when ruuvi device is discovered', async ({ expect, discover }) => {
     const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
-    discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
-    discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
+    await discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
+    await discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
 
     // discover called two times
     expect(onEvent).toHaveBeenCalledTimes(2)
@@ -198,5 +212,68 @@ describe('scanner', () => {
 
     expect(() => discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })).not.toThrow()
     expect(onEvent).not.toHaveBeenCalled()
+  })
+
+  describe('on new device discovery', async () => {
+    const discoveryLogMessage =
+      'Found a new Ruuvi device: (address: {address}, name: {peripheral.advertisement.localName}, alias: {alias})'
+
+    test<CustomContext>('should log the address embedded in the payload and the alias for a device with a configured alias', async ({
+      expect,
+      discover,
+    }) => {
+      // MAC embedded in the payload is AA:BB:CC:DD:EE:FF, aliased to 'mock-alias' in src/testing/test-config.ts
+      const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDAABBCCDDEEFF', 'hex')
+
+      await discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral' })
+
+      expect(loggerMock.info).toHaveBeenCalledWith(discoveryLogMessage, {
+        address: 'AA:BB:CC:DD:EE:FF',
+        alias: 'mock-alias',
+        peripheral: expect.anything(),
+      })
+    })
+
+    test<CustomContext>('should log the address embedded in the payload and an undefined alias for device without a configured alias', async ({
+      expect,
+      discover,
+    }) => {
+      // MAC embedded in the payload is 11:22:33:44:55:66, which has no alias configured
+      const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CD112233445566', 'hex')
+
+      await discover({
+        advertisement: { manufacturerData: data, localName: 'Ruuvi 1234' },
+        id: 'dummy-ruuvi-peripheral',
+      })
+
+      expect(loggerMock.info).toHaveBeenCalledWith(discoveryLogMessage, {
+        address: '11:22:33:44:55:66',
+        alias: undefined,
+        peripheral: expect.anything(),
+      })
+    })
+
+    test<CustomContext>('should log the peripheral address, normalized to uppercase, when manufacturer data fails to parse,', async ({
+      expect,
+      discover,
+    }) => {
+      // Regresses the Linux-only bug: manufacturer data has the right company code but is otherwise
+      // truncated, so RuuviDataSchema can't parse an embedded MAC out of it. The peripheral's own BLE
+      // address (which noble can report lowercase) is used instead, uppercased to match how aliases
+      // are keyed in config.
+      const data = Buffer.from('990405', 'hex')
+
+      await discover({
+        advertisement: { manufacturerData: data },
+        id: 'dummy-ruuvi-peripheral',
+        address: 'aa:bb:cc:dd:ee:ff',
+      })
+
+      expect(loggerMock.info).toHaveBeenCalledWith(discoveryLogMessage, {
+        address: 'AA:BB:CC:DD:EE:FF',
+        alias: 'mock-alias',
+        peripheral: expect.anything(),
+      })
+    })
   })
 })

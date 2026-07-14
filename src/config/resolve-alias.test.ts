@@ -13,6 +13,12 @@ describe('resolveAlias', () => {
     await expect(resolveAlias('AA:BB:CC:DD:EE:FF')).resolves.toBeUndefined()
   })
 
+  test('returns undefined when the address is undefined', async ({ expect }) => {
+    getConfigMock.mockResolvedValue({ aliases: { 'AA:BB:CC:DD:EE:FF': 'Bedroom' } } as unknown as Config)
+
+    await expect(resolveAlias(undefined)).resolves.toBeUndefined()
+  })
+
   test('returns undefined when the address has no matching alias', async ({ expect }) => {
     getConfigMock.mockResolvedValue({ aliases: { 'AA:BB:CC:DD:EE:FF': 'Bedroom' } } as unknown as Config)
 

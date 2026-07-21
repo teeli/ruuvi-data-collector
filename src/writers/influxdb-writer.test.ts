@@ -47,13 +47,52 @@ describe('influxdb-writer', () => {
         temperature: 9,
         movement: 10,
       },
-      metadata: { timestamp: new Date() },
+      metadata: { timestamp: new Date(), rssi: -67 },
     })
 
     expect(writePointMock).toHaveBeenCalledTimes(1)
     expect(writePointMock).toHaveBeenCalledWith({
       name: 'ruuvi_measurement',
       tags: { dataFormat: '5', address: 'AA:BB:CC:DD:EE:FF', alias: 'mock-alias' },
+      fields: {
+        txPower: '1',
+        voltage: '2',
+        sequence: '3',
+        accelerationX: '4',
+        accelerationY: '5',
+        accelerationZ: '6',
+        humidity: '7',
+        pressure: '8',
+        temperature: '9',
+        movement: '10',
+        rssi: '-67',
+      },
+    })
+  })
+
+  test('should omit the rssi field when metadata.rssi is undefined', async ({ expect }) => {
+    await writer.handleEvent({
+      data: {
+        dataFormat: '5',
+        address: 'mock-address-no-rssi',
+        txPower: 1,
+        voltage: 2,
+        sequence: 3,
+        accelerationX: 4,
+        accelerationY: 5,
+        accelerationZ: 6,
+        humidity: 7,
+        pressure: 8,
+        temperature: 9,
+        movement: 10,
+      },
+      metadata: { timestamp: new Date(), rssi: undefined },
+    })
+
+    expect(writePointMock).toHaveBeenCalledTimes(1)
+    expect(writePointMock).toHaveBeenCalledWith({
+      name: 'ruuvi_measurement',
+      tags: { dataFormat: '5', address: 'mock-address-no-rssi' },
       fields: {
         txPower: '1',
         voltage: '2',
@@ -87,7 +126,7 @@ describe('influxdb-writer', () => {
         sequence: 6,
         iaqs: undefined,
       },
-      metadata: { timestamp: new Date() },
+      metadata: { timestamp: new Date(), rssi: undefined },
     })
 
     expect(writePointMock).toHaveBeenCalledTimes(1)
@@ -114,7 +153,7 @@ describe('influxdb-writer', () => {
         sequence: 4,
         iaqs: undefined,
       },
-      metadata: { timestamp: new Date() },
+      metadata: { timestamp: new Date(), rssi: undefined },
     })
 
     expect(writePointMock).toHaveBeenCalledTimes(1)
@@ -144,7 +183,7 @@ describe('influxdb-writer', () => {
         sequence: 5,
         iaqs: undefined,
       },
-      metadata: { timestamp: new Date() },
+      metadata: { timestamp: new Date(), rssi: undefined },
     } satisfies ScannerEvent
     await writer.handleEvent(event)
     await writer.handleEvent(event)
@@ -176,7 +215,7 @@ describe('influxdb-writer', () => {
         sequence: 0,
         iaqs: undefined,
       },
-      metadata: { timestamp: new Date() },
+      metadata: { timestamp: new Date(), rssi: undefined },
     } satisfies ScannerEvent
     await writer.handleEvent(event)
     await writer.handleEvent(event)
@@ -208,7 +247,7 @@ describe('influxdb-writer', () => {
         sequence: 7,
         iaqs: undefined,
       },
-      metadata: { timestamp: new Date() },
+      metadata: { timestamp: new Date(), rssi: undefined },
     } satisfies ScannerEvent
 
     const firstWriter = await createWriter({ client: influxdb })

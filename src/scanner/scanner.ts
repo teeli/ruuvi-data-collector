@@ -7,7 +7,7 @@ import noble from '@stoprocent/noble'
 
 const RUUVI_COMPANY_CODE = 0x0499
 
-export type ScannerEvent = { metadata: { timestamp: Date }; data: RuuviData }
+export type ScannerEvent = { metadata: { timestamp: Date; rssi: number | undefined }; data: RuuviData }
 
 export interface Scanner {
   start: () => Promise<void>
@@ -55,7 +55,7 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
       }
 
       if (success) {
-        const metadata = { timestamp: new Date() }
+        const metadata = { timestamp: new Date(), rssi: peripheral.rssi }
         const eventPromise = onEvent({ data, metadata })
         inFlightEvents.add(eventPromise)
         try {

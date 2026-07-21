@@ -175,8 +175,18 @@ describe('scanner', () => {
         movement: 66,
         sequence: 205,
       },
-      metadata: { timestamp: expect.any(Date) },
+      metadata: { timestamp: expect.any(Date), rssi: undefined },
     })
+  })
+
+  test<CustomContext>('should include rssi in event metadata when the peripheral reports it', async ({
+    expect,
+    discover,
+  }) => {
+    const data = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
+    await discover({ advertisement: { manufacturerData: data }, id: 'dummy-ruuvi-peripheral', rssi: -67 })
+
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({ rssi: -67 }) }))
   })
 
   test<CustomContext>('should not crash when onEvent rejects', async ({ expect, discover }) => {

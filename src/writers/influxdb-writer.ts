@@ -52,6 +52,10 @@ export const createWriter: CreateWriter = async ({ client }) => {
       return point.floatField(key, value)
     }, new Point('ruuvi_measurement'))
 
+    if (!isNil(event.metadata.rssi)) {
+      point.floatField('rssi', event.metadata.rssi)
+    }
+
     const alias = await resolveAlias(address)
     if (alias) {
       point.tag('alias', alias)

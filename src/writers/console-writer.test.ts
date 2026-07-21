@@ -31,10 +31,11 @@ describe('console-writer', () => {
         temperature: 9,
         movement: 10,
       },
-      metadata: { timestamp: new Date() },
+      metadata: { timestamp: new Date(), rssi: -67 },
     } satisfies ScannerEvent)
 
     expect(logSpy).toHaveBeenCalledTimes(1)
     expect(logSpy.mock.calls[0]?.join(' ')).toContain('mock-alias')
+    expect(logSpy.mock.calls[0]?.join(' ')).toContain('-67 dBm')
   })
 })

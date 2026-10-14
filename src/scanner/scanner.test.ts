@@ -287,3 +287,101 @@ describe('scanner', () => {
     })
   })
 })
+
+describe('scanner watchdog', () => {
+  const validData = Buffer.from('99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F', 'hex')
+  const onStall = vi.fn<() => void>()
+  let discover: (peripheral: unknown) => Promise<void>
+
+  beforeEach(async () => {
+    vi.useFakeTimers()
+    getLoggerMock.mockResolvedValue(loggerMock as unknown as Awaited<ReturnType<typeof getLogger>>)
+    nobleMock.on.mockImplementation((event, listener) => {
+      if (event === 'discover') {
+        discover = listener as typeof discover
+      }
+      return nobleMock
+    })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.resetAllMocks()
+  })
+
+  test('should call onStall and log an error when no valid measurement is received before the timeout', async ({
+    expect,
+  }) => {
+    const scanner = await createScanner({ onEvent, onStall })
+    await scanner.start()
+
+    vi.advanceTimersByTime(600_000)
+
+    expect(onStall).toHaveBeenCalledTimes(1)
+    expect(loggerMock.error).toHaveBeenCalledWith(expect.stringContaining('Scanner stalled'), { timeout: 600_000 })
+  })
+
+  test('should not call onStall before the timeout has elapsed', async ({ expect }) => {
+    const scanner = await createScanner({ onEvent, onStall })
+    await scanner.start()
+
+    vi.advanceTimersByTime(599_999)
+
+    expect(onStall).not.toHaveBeenCalled()
+  })
+
+  test('should restart the countdown when a valid measurement is received', async ({ expect }) => {
+    const scanner = await createScanner({ onEvent, onStall })
+    await scanner.start()
+
+    vi.advanceTimersByTime(500_000)
+    await discover({ advertisement: { manufacturerData: validData }, id: 'dummy-ruuvi-peripheral' })
+    vi.advanceTimersByTime(500_000)
+
+    expect(onStall).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(100_000)
+
+    expect(onStall).toHaveBeenCalledTimes(1)
+  })
+
+  test('should not restart the countdown when invalid data is received', async ({ expect }) => {
+    const scanner = await createScanner({ onEvent, onStall })
+    await scanner.start()
+
+    vi.advanceTimersByTime(500_000)
+    await discover({ advertisement: { manufacturerData: Buffer.from('9904FF', 'hex') }, id: 'dummy-ruuvi-peripheral' })
+    vi.advanceTimersByTime(100_000)
+
+    expect(onStall).toHaveBeenCalledTimes(1)
+  })
+
+  test('should not call onStall after the scanner is closed', async ({ expect }) => {
+    const scanner = await createScanner({ onEvent, onStall })
+    await scanner.start()
+    await scanner.close()
+
+    vi.advanceTimersByTime(600_000)
+
+    expect(onStall).not.toHaveBeenCalled()
+  })
+
+  test('should call onStall when starting the scanner failed and no measurement arrives', async ({ expect }) => {
+    nobleMock.waitForPoweredOnAsync.mockRejectedValueOnce(new Error('mock error'))
+    const scanner = await createScanner({ onEvent, onStall })
+    await scanner.start()
+
+    vi.advanceTimersByTime(599_999)
+    expect(onStall).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1)
+    expect(onStall).toHaveBeenCalledTimes(1)
+  })
+
+  test('should not throw on timeout when no onStall callback is given', async ({ expect }) => {
+    const scanner = await createScanner({ onEvent })
+    await scanner.start()
+
+    expect(() => vi.advanceTimersByTime(600_000)).not.toThrow()
+  })
+})

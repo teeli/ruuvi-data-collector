@@ -1,7 +1,9 @@
+import { getConfig } from '@config/config'
 import { resolveAlias } from '@config/resolve-alias'
 import { getLogger } from '@logger/logger'
 import type { RuuviData } from '@scanner/ruuvi-data-schema'
 import { RuuviDataSchema } from '@scanner/ruuvi-data-schema'
+import { createWatchdog } from '@util/watchdog'
 import type { AdapterState, Peripheral } from '@stoprocent/noble'
 import noble from '@stoprocent/noble'
 
@@ -14,12 +16,25 @@ export interface Scanner {
   close: () => Promise<void>
 }
 
-type ScannerConfig = { onEvent: (event: ScannerEvent) => Promise<void> }
+type ScannerConfig = {
+  onEvent: (event: ScannerEvent) => Promise<void>
+  /* Called when no valid measurement has been received within the configured watchdog timeout */
+  onStall?: () => void
+}
 type CreateScanner = (scannerConfig: ScannerConfig) => Promise<Scanner>
 
-export const createScanner: CreateScanner = async ({ onEvent }) => {
+export const createScanner: CreateScanner = async ({ onEvent, onStall }) => {
   const logger = await getLogger(['ruuvi', 'scanner'])
   logger.info(`Initializing scanner...`)
+
+  const { scannerTimeout } = (await getConfig()).watchdog
+  const watchdog = createWatchdog({
+    timeoutMs: scannerTimeout,
+    onTimeout: () => {
+      logger.error('Scanner stalled: no valid Ruuvi measurement received in {timeout} ms', { timeout: scannerTimeout })
+      onStall?.()
+    },
+  })
 
   const ruuviDevices = new Map<string, Peripheral>()
   const inFlightEvents = new Set<Promise<void>>()
@@ -55,6 +70,7 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
       }
 
       if (success) {
+        watchdog.start()
         const metadata = { timestamp: new Date(), rssi: peripheral.rssi }
         const eventPromise = onEvent({ data, metadata })
         inFlightEvents.add(eventPromise)
@@ -85,6 +101,7 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
 
   const start: Scanner['start'] = async () => {
     logger.info('Starting the BLE scanner...')
+    watchdog.start()
     try {
       noble.on('stateChange', handleStateChange)
       noble.on('discover', handleDiscover)
@@ -99,6 +116,7 @@ export const createScanner: CreateScanner = async ({ onEvent }) => {
 
   const close: Scanner['close'] = async () => {
     logger.info('Closing the BLE scanner...')
+    watchdog.stop()
     noble.off('stateChange', handleStateChange)
     noble.off('discover', handleDiscover)
     await noble.stopScanningAsync()

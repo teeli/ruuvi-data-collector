@@ -19,7 +19,6 @@ const ConfigSchema = z
           batchSize: z.number().int().positive().prefault(1000),
           flushInterval: z.number().int().positive().prefault(60000),
         })
-        .optional()
         .prefault({}),
     }),
     aliases: z
@@ -34,14 +33,12 @@ const ConfigSchema = z
         scannerTimeout: z.number().int().positive().max(MAX_TIMER_DELAY_MS).prefault(600_000),
         writerTimeout: z.number().int().positive().max(MAX_TIMER_DELAY_MS).prefault(600_000),
       })
-      .optional()
       .prefault({}),
     log: z
       .object({
         level: z.enum(getLogLevels()).prefault('info'),
         file: z.string().prefault('logs/ruuvi-data-collector.log'),
       })
-      .optional()
       .prefault({}),
   })
   .refine(({ watchdog, influxdb }) => watchdog.writerTimeout > influxdb.write.flushInterval + WRITE_RETRY_MARGIN_MS, {

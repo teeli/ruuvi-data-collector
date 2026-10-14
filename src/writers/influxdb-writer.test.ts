@@ -1,6 +1,6 @@
 import type { WriteApi, WriteOptions, InfluxDB } from '@influxdata/influxdb-client'
 import type { ScannerEvent } from '@scanner/scanner'
-import { afterEach, beforeAll, beforeEach, describe, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, test, vi } from 'vitest'
 import { createWriter } from './influxdb-writer'
 
 const writePointMock = vi.fn<WriteApi['writePoint']>()
@@ -13,7 +13,7 @@ const influxdb = { getWriteApi: getWriteApiMock } as unknown as InfluxDB
 describe('influxdb-writer', () => {
   let writer: Awaited<ReturnType<typeof createWriter>>
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     writer = await createWriter({ client: influxdb })
   })
 

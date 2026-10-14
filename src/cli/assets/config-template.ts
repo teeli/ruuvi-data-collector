@@ -24,6 +24,13 @@ export default defineConfig({
     // write: { batchSize: 1000, flushInterval: 60000 },
   },
   /**
+   * Watchdog settings (Optional). If no valid measurement has been received from the scanner, or no buffered
+   * measurement has been written to InfluxDB, within the timeout, the process logs an error and exits so that
+   * the service manager can restart it. Timeouts are in milliseconds, defaults are 10 minutes. writerTimeout must exceed
+   * influxdb.write.flushInterval by more than 305 seconds (InfluxDB retry margin).
+   */
+  // watchdog: { scannerTimeout: 600_000, writerTimeout: 600_000 },
+  /**
    * Log settings (Optional)
    */
   log: {

@@ -31,8 +31,8 @@ Always keep documentation (`CLAUDE.md`, `README.md`) up to date.
 ## Config
 
 App config is a gitignored `config.ts` at the repo root (NOT `.env`) (InfluxDB
-connection, bucket/org, device aliases, log settings), generated via
-`bun run config:generate` and validated by the zod schema in
+connection, bucket/org, device aliases, watchdog timeouts, log settings),
+generated via `bun run config:generate` and validated by the zod schema in
 `src/config/config.ts`. Do NOT regenerate file if `config.ts` already exists.
 
 ## Dependencies

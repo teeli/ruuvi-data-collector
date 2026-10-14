@@ -1,6 +1,6 @@
-import type { WriteApi, InfluxDB } from '@influxdata/influxdb-client'
+import type { WriteApi, WriteOptions, InfluxDB } from '@influxdata/influxdb-client'
 import type { ScannerEvent } from '@scanner/scanner'
-import { afterEach, beforeAll, describe, test, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, test, vi } from 'vitest'
 import { createWriter } from './influxdb-writer'
 
 const writePointMock = vi.fn<WriteApi['writePoint']>()
@@ -22,7 +22,12 @@ describe('influxdb-writer', () => {
   })
 
   test('should create the write API with configured write options', ({ expect }) => {
-    expect(getWriteApiMock).toHaveBeenCalledWith('dummy', 'dummy', 'ns', { batchSize: 1000, flushInterval: 60000 })
+    expect(getWriteApiMock).toHaveBeenCalledWith(
+      'dummy',
+      'dummy',
+      'ns',
+      expect.objectContaining({ batchSize: 1000, flushInterval: 60_000 })
+    )
   })
 
   test('should close the underlying write API', async ({ expect }) => {
@@ -257,5 +262,136 @@ describe('influxdb-writer', () => {
     await secondWriter.handleEvent(event)
 
     expect(writePointMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('influxdb-writer watchdog', () => {
+  const onStall = vi.fn<() => void>()
+  const event = (sequence: number) =>
+    ({
+      data: {
+        dataFormat: 'E1',
+        address: 'mock-address-watchdog',
+        humidity: undefined,
+        pressure: undefined,
+        temperature: undefined,
+        luminosity: undefined,
+        'pm1.0': undefined,
+        'pm2.5': undefined,
+        'pm4.0': undefined,
+        'pm10.0': undefined,
+        calibration: false,
+        co2: 1,
+        nox: 2,
+        voc: 3,
+        sequence,
+        iaqs: undefined,
+      },
+      metadata: { timestamp: new Date(), rssi: undefined },
+    }) satisfies ScannerEvent
+
+  const writeApiOptions = () => getWriteApiMock.mock.calls.at(-1)?.[3] as WriteOptions
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    getWriteApiMock.mockImplementation(() => ({ writePoint: writePointMock, close: closeMock }) as unknown as WriteApi)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.resetAllMocks()
+  })
+
+  test('should call onStall when a point stays unwritten past the timeout', async ({ expect }) => {
+    const writer = await createWriter({ client: influxdb, onStall })
+    await writer.handleEvent(event(1))
+
+    vi.advanceTimersByTime(600_000)
+
+    expect(onStall).toHaveBeenCalledTimes(1)
+  })
+
+  test('should not call onStall before the timeout has elapsed', async ({ expect }) => {
+    const writer = await createWriter({ client: influxdb, onStall })
+    await writer.handleEvent(event(1))
+
+    vi.advanceTimersByTime(599_999)
+
+    expect(onStall).not.toHaveBeenCalled()
+  })
+
+  test('should not call onStall when no points have been buffered', async ({ expect }) => {
+    await createWriter({ client: influxdb, onStall })
+
+    vi.advanceTimersByTime(600_000)
+
+    expect(onStall).not.toHaveBeenCalled()
+  })
+
+  test('should not call onStall when the write succeeds', async ({ expect }) => {
+    const writer = await createWriter({ client: influxdb, onStall })
+    await writer.handleEvent(event(1))
+
+    vi.advanceTimersByTime(300_000)
+    writeApiOptions().writeSuccess.call({} as WriteApi, ['line'])
+    vi.advanceTimersByTime(600_000)
+
+    expect(onStall).not.toHaveBeenCalled()
+  })
+
+  test('should call onStall when writes keep failing', async ({ expect }) => {
+    const writer = await createWriter({ client: influxdb, onStall })
+    await writer.handleEvent(event(1))
+
+    writeApiOptions().writeFailed.call({} as WriteApi, new Error('mock error'), ['line'], 1, Date.now())
+    vi.advanceTimersByTime(600_000)
+
+    expect(onStall).toHaveBeenCalledTimes(1)
+  })
+
+  test('should not restart the countdown when further points are buffered', async ({ expect }) => {
+    const writer = await createWriter({ client: influxdb, onStall })
+    await writer.handleEvent(event(1))
+
+    vi.advanceTimersByTime(300_000)
+    await writer.handleEvent(event(2))
+    vi.advanceTimersByTime(300_000)
+
+    expect(onStall).toHaveBeenCalledTimes(1)
+  })
+
+  test('should not call onStall after the writer is closed', async ({ expect }) => {
+    const writer = await createWriter({ client: influxdb, onStall })
+    await writer.handleEvent(event(1))
+    await writer.close()
+
+    vi.advanceTimersByTime(600_000)
+
+    expect(onStall).not.toHaveBeenCalled()
+  })
+
+  test('should not throw on timeout when no onStall callback is given', async ({ expect }) => {
+    const writer = await createWriter({ client: influxdb })
+    await writer.handleEvent(event(1))
+
+    expect(() => vi.advanceTimersByTime(600_000)).not.toThrow()
+  })
+
+  test('should preserve configured write options alongside the callbacks', async ({ expect }) => {
+    await createWriter({ client: influxdb })
+
+    expect(writeApiOptions()).toEqual({
+      batchSize: 1000,
+      flushInterval: 60_000,
+      writeSuccess: expect.any(Function),
+      writeFailed: expect.any(Function),
+      writeRetrySkipped: expect.any(Function),
+    })
+  })
+
+  test('should not throw when the write API reports a skipped retry', async ({ expect }) => {
+    await createWriter({ client: influxdb })
+
+    expect(() => writeApiOptions().writeRetrySkipped({ lines: ['line'], expires: Date.now() })).not.toThrow()
   })
 })
